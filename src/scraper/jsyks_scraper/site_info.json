@@ -1,5 +1,6 @@
 {
   "url":  "https://tiba.jsyks.com/Post/{QuestionId}.htm",
   "url_placeholder": "{QuestionId}",
-  "div_id": "question"
+  "div_id": "question",
+  "html_examples": []
 }

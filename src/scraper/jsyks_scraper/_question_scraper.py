@@ -3,8 +3,9 @@
 
 # Library Imports
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, SoupStrainer
 import json
+from typing import Set, List
 
 # Module Import
 from scraper.question import Question
@@ -18,6 +19,7 @@ class QuestionScraper:
     _config_path: str
     _generic_url: str
     _url_placeholder: str
+    _questn_div_id: str
     _qid: str
 
     def __init__(self, img_dir: str, config_path: str):
@@ -36,6 +38,7 @@ class QuestionScraper:
             site_info = json.load(file)
             self._generic_url = site_info["url"]
             self._url_placeholder = site_info["url_placeholder"]
+            self._questn_div_id = site_info["div_id"]
 
     def _format_url(self, q_id: str) -> str:
         """
@@ -53,11 +56,71 @@ class QuestionScraper:
         :return: BeautifulSoup object containing the parsed HTML content.
         """
         response = requests.get(url)
+        parse_filter = SoupStrainer(id=self._questn_div_id)
         if 200 <= response.status_code < 300: # Successful response
-            return BeautifulSoup(response.content,'html.parser')
+            return BeautifulSoup(response.content,
+                                 'html.parser',
+                                 parse_only=parse_filter)
         else:
             raise JSYKSConnectionError(f"Failed to connect to {url}. "
                                        f"Status code: {response.status_code}")
+
+    def _extract_question(self, qid: str, soup: BeautifulSoup) -> Question:
+        """
+        Extract the question from the HTML soup based on format specified in
+        site_info.json.
+
+        :param qid: The question ID.
+        :param soup:
+        :return Question: The Question object containing the question content,
+        """
+        header = soup.find("h1")
+        options, ans = self._extract_answers(header)
+        return Question(
+            qid=qid,
+            question=self._extract_question_text(header),
+            answers=options,
+            correct_answer=ans,
+            img_path=self._extract_img_url(header)
+        )
+
+    def _extract_question_text(self, h1) -> str:
+        strong = h1.find("strong")
+        a = strong.find("a")
+        return a.get_text(strip=True)
+
+    def _extract_img_url(self, h1) -> str | None:
+        img = h1.find("img")
+        return img["src"] if img and img.has_attr("src") else None
+
+    def _extract_answers(self, h1) -> (Set[str], str):
+        options = []
+        for elem in h1.contents:
+            if getattr(elem, "name", None) == "br":
+                continue
+            if isinstance(elem, str):
+                text = elem.strip()
+                if text and len(text) > 2 and text[1] == "、" and text[0] in "ABCD":
+                    options.append(text[2:].strip())
+            elif getattr(elem, "name", None) == "b":
+                b_text = elem.get_text(strip=True)
+                if b_text and len(b_text) > 2 and b_text[1] == "、" and b_text[0] in "ABCD":
+                    options.append(b_text[2:].strip())
+        u = h1.find("u")
+        correct_letter = u.get_text(strip=True)
+        idx = ord(correct_letter) - ord("A")
+        correct_answer = options[idx]
+        return set(options), correct_answer
+
+    def _get_img(self, img_url: str, save_path: str):
+        """
+        Download the image from the given URL and save it to the specified
+        path.
+
+        :param img_url: The URL of the image to download.
+        :param save_path: The path where the image will be saved.
+        """
+        return
 
     def get_content(self, q_id: str) -> Question:
         """
@@ -68,9 +131,7 @@ class QuestionScraper:
         """
         url = self._format_url(q_id)
         webpage = self._get_webpage(url)
-
-
-        raise NotImplementedError
+        return self._extract_question(q_id, webpage)
 
 
 class JSYKSConnectionError(ConnectionError):
