@@ -1,1 +1,1 @@
-# Public interface for the scraper module
+# Public interface for the scrapers

@@ -45,7 +45,6 @@ class Question:
             raise IncorrectFormatError("Image path must be a string or None.")
 
 
-
 class IncorrectFormatError(TypeError):
     """ Error class for incorrect question format. """
 
