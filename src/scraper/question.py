@@ -1,5 +1,5 @@
 # Data class for a question
-from typing import Set, Any
+from typing import Set
 
 class Question:
     """
@@ -7,12 +7,12 @@ class Question:
     """
     _qid: str
     _question: str
-    _img_path: Any(str, None)
+    _img_path: str | None
     _answers: Set[str]
     _correct_answer: str
 
     def __init__(self, qid: str, question: str, answers: Set[str],
-                 correct_answer: str, img_path: Any(str, None) = None):
+                 correct_answer: str, img_path: str | None = None):
         """
         Initializes the Question with the provided parameters.
 
