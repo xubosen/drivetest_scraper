@@ -13,8 +13,7 @@ import re
 from scraper.question import Question
 from scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
                                                  JSYKSContentRetrievalError,
-                                                 ConfigError,
-                                                 Img_Dir_Error)
+                                                 ConfigError)
 
 
 class QuestionScraper:

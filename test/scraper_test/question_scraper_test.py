@@ -7,11 +7,12 @@ from PIL import Image
 from unittest.mock import patch, MagicMock
 
 # Module Imports
-from scraper.question import Question
+from scraper.question import Question, IncorrectFormatError
 from scraper.jsyks_scraper._question_scraper import QuestionScraper
 from scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
                                                  JSYKSContentRetrievalError,
-                                                 ConfigError)
+                                                 ConfigError,
+                                                 Img_Dir_Error)
 
 # Test constants
 SAMPLE_QID = "33b74"
@@ -31,6 +32,12 @@ TF_SAMPLE_HTML = SAMPLE_HTMLS["true_false"]
 # Create a sample HTML without images for testing
 NO_IMG_HTML = """<div id="question" class="fcc"><h1><strong><a href="/Post/abcde.htm">这是一个没有图片的问题？</a></strong>
 A、选项一<br>B、选项二<br><b>C、选项三</b><br>D、选项四<br>答案：<u>C</u></h1><p><i title="人气指数" id="ReadCount">1000</i></p><b class="bg"></b></div>"""
+
+# TODO: Create malformed HTML samples for testing error handling
+# Malformed HTML missing question text
+# Malformed HTML missing options
+# Malformed HTML with incorrect answer format
+# Malformed HTML missing h1 tag
 
 # Common test helper functions
 def get_h1_from_html(html):
@@ -52,6 +59,10 @@ class TestQuestionScraperSetup:
         assert scraper._format_url(SAMPLE_QID) == expected_url, \
             "URL formatting failed."
 
+    # TODO: Test initialization with invalid config path
+    # TODO: Test initialization with config file missing required keys
+    # TODO: Test initialization with malformed JSON in config file
+
 
 class TestQuestionScraperWebFetching:
     """Tests for web page fetching functionality"""
@@ -64,6 +75,11 @@ class TestQuestionScraperWebFetching:
         """Test the webpage fetching function."""
         soup = scraper._get_webpage(SAMPLE_URL)
         assert isinstance(soup, BeautifulSoup), "Webpage fetching failed."
+
+    # TODO: Test _get_webpage with non-existent URL
+    # TODO: Test _get_webpage with URL that returns non-200 status code
+    # TODO: Test _get_webpage with request timeout
+    # TODO: Test _get_webpage with connection error
 
 
 class TestQuestionTextExtraction:
@@ -108,6 +124,10 @@ class TestQuestionTextExtraction:
             # Verify the return value
             assert img_path == f"{IMG_PATH}/{SAMPLE_QID}.webp"
 
+    # TODO: Test _extract_question_text with None HTML section
+    # TODO: Test _extract_question_text with HTML missing strong tag
+    # TODO: Test _extract_question_text with HTML missing a tag
+
 
 class TestQuestionTypeDetection:
     """Tests for detecting question types (T/F vs multiple choice)"""
@@ -127,6 +147,8 @@ class TestQuestionTypeDetection:
         h1 = get_h1_from_html(TF_SAMPLE_HTML)
         assert scraper._is_tf(h1), \
             "True/false question not correctly identified"
+
+    # TODO: Test _is_tf with malformed HTML
 
 
 class TestAnswerExtraction:
@@ -196,6 +218,12 @@ class TestAnswerExtraction:
         assert options == expected, \
             "Answers not correctly extracted from true/false question"
 
+    # TODO: Test _extract_4c with HTML missing options
+    # TODO: Test _extract_4c with HTML having fewer than 4 options
+    # TODO: Test _extract_4c with HTML having incorrect letter format
+    # TODO: Test _extract_correct with HTML missing the answer marker
+    # TODO: Test _extract_correct with HTML having invalid correct letter
+
 
 class TestImageHandling:
     """Tests for image extraction and downloading"""
@@ -244,6 +272,12 @@ class TestImageHandling:
         # Test that _extract_img_path correctly handles None image URL
         img_path = scraper._extract_img_path(h1, "abcde")
         assert img_path is None, "Image path should be None when no image is present"
+
+    # TODO: Test _download_img with invalid URL
+    # TODO: Test _download_img with URL that returns non-200 status code
+    # TODO: Test _download_img with invalid save path
+    # TODO: Test _download_img with a URL that doesn't point to an image
+    # TODO: Test _download_img with network timeout
 
 
 class TestIntegration:
@@ -327,3 +361,20 @@ class TestIntegration:
 
         # Verify the mock was called with the expected argument
         mock_scraper.get_content.assert_called_once_with("mock123")
+
+    # TODO: Test get_content with invalid question ID
+    # TODO: Test get_content with connection error
+    # TODO: Test get_content with malformed HTML
+    # TODO: Test get_content with HTML missing h1 tag
+
+
+# TODO: Add a new test class for Question validation errors
+class TestQuestionValidation:
+    """Tests for Question validation and error handling"""
+
+    # TODO: Test Question initialization with empty qid
+    # TODO: Test Question initialization with empty question text
+    # TODO: Test Question initialization with less than 2 answers
+    # TODO: Test Question initialization with empty answer in answers set
+    # TODO: Test Question initialization with correct_answer not in answers
+    # TODO: Test Question initialization with non-string img_path
