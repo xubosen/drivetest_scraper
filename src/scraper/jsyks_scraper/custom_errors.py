@@ -24,11 +24,3 @@ class ConfigError(LookupError):
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
-
-class Img_Dir_Error(LookupError):
-    """
-    Custom error for an invalid image directory.
-    """
-    def __init__(self, message: str):
-        super().__init__(message)
-        self.message = message
