@@ -1,5 +1,4 @@
 # Scrape question ids from jsyks using requests and BeautifulSoup.
-from http.client import responses
 
 # Library Imports
 import requests
@@ -7,6 +6,10 @@ from bs4 import BeautifulSoup, SoupStrainer
 import json
 from typing import List, Dict
 
+# Local Imports
+from src.scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
+                                                     JSYKSContentRetrievalError,
+                                                     ConfigError)
 
 class QidScraper:
     """
@@ -61,13 +64,13 @@ class QidScraper:
         ids.
         """
         response = requests.get(url)
-        filter = SoupStrainer(id=self._div_id)
         if 200 <= response.status_code < 300:
+            my_filter = SoupStrainer("div", class_ = self._div_id)
             return BeautifulSoup(response.content,
                                  'html.parser',
-                                 parse_only=filter)
+                                 parse_only=my_filter)
         else:
-            raise NotImplementedError
+            raise JSYKSConnectionError(f"Failed to connect to {url}. ")
 
     def _extract(self, soup: BeautifulSoup) -> List[str]:
         """
