@@ -16,3 +16,19 @@ class JSYKSContentRetrievalError(ConnectionError):
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
+
+class ConfigError(LookupError):
+    """
+    Custom error for a missing or incorrectly formatted configuration file.
+    """
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+class Img_Dir_Error(LookupError):
+    """
+    Custom error for an invalid image directory.
+    """
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
