@@ -11,6 +11,8 @@ import re
 
 # Module Import
 from scraper.question import Question
+from scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
+                                                 JSYKSContentRetrievalError)
 
 
 class QuestionScraper:
@@ -110,7 +112,7 @@ class QuestionScraper:
             return img_path
 
         else:
-            raise ContentNotFoundException(f"Image not found at {img_url}")
+            raise JSYKSContentRetrievalError(f"Image not found at {img_url}")
 
     def _extract_answers(self, header: BeautifulSoup) -> Set[str]:
         """
@@ -187,20 +189,3 @@ class QuestionScraper:
                 correct_answer=self._extract_correct(header),
                 img_path=self._extract_img_path(header, qid)
             )
-
-
-class JSYKSConnectionError(ConnectionError):
-    """
-    Custom exception for connection errors in the JSYKS scraper.
-    """
-    def __init__(self, message: str):
-        super().__init__(message)
-        self.message = message
-
-class ContentNotFoundException(Exception):
-    """
-    Custom exception for when content is not found in the JSYKS scraper.
-    """
-    def __init__(self, message: str):
-        super().__init__(message)
-        self.message = message
