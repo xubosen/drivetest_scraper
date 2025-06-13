@@ -1,12 +1,15 @@
 # Library Imports
 import pytest
 from bs4 import BeautifulSoup
+import os
+from PIL import Image
 
 # Module Imports
 from scraper.question import Question
 from scraper.jsyks_scraper._question_scraper import QuestionScraper
 
 SAMPLE_URL = "https://tiba.jsyks.com/Post/33b74.htm"
+SAMPLE_IMG_URL = "https://tp.mnks.cn/ExamPic/kmy_136.jpg"
 
 SAMPLE_HTML = """
         <div id="question" class="fcc"><h1>
@@ -79,7 +82,7 @@ class TestQuestionScraper:
         assert "学校区域" in question._answers
         assert "注意行人" in question._answers
         assert question._correct_answer == "注意儿童"
-        assert question._img_path == "https://tp.mnks.cn/ExamPic/kmy_136.jpg"
+        assert question._img_path == "db_test/img/33b74.webp"
 
     def get_h1(self):
         soup = self.webpage if self.webpage is not None else BeautifulSoup(SAMPLE_HTML, "html.parser")
@@ -101,3 +104,33 @@ class TestQuestionScraper:
         options, correct = scraper._extract_answers(h1)
         assert options == {"注意行人", "人行横道", "注意儿童", "学校区域"}
         assert correct == "注意儿童"
+
+    def test__download_img(self):
+        """
+        Test the _download_img helper method using SAMPLE_IMG_URL.
+        This test will download the image and check the file is created and non-empty.
+        """
+        qid = "33b74"
+        img_ext = ".webp"
+        expected_filename = f"{qid}{img_ext}"
+        expected_path = os.path.join(IMG_PATH, expected_filename)
+
+        # Ensure the directory exists
+        os.makedirs(IMG_PATH, exist_ok=True)
+
+        # Remove file if it exists from previous runs
+        if os.path.exists(expected_path):
+            os.remove(expected_path)
+
+        result_path = self.scraper._download_img(qid, SAMPLE_IMG_URL, IMG_PATH)
+
+        assert os.path.exists(result_path), "Image file was not created."
+        assert result_path == expected_path
+        assert os.path.getsize(result_path) > 0, "Downloaded image file is empty."
+
+        # Verify the image can be opened
+        try:
+            with Image.open(result_path) as img:
+                assert img.format in ['WEBP'], f"Invalid image format: {img.format}"
+        except Exception as e:
+            pytest.fail(f"Failed to open image: {str(e)}")

@@ -6,6 +6,7 @@ import requests
 from bs4 import BeautifulSoup, SoupStrainer
 import json
 from typing import Set, List
+import os.path
 
 # Module Import
 from scraper.question import Question
@@ -75,13 +76,20 @@ class QuestionScraper:
         :return Question: The Question object containing the question content,
         """
         header = soup.find("h1")
-        options, ans = self._extract_answers(header)
+        answers, ans = self._extract_answers(header)
+
+        img_url = self._extract_img_url(header)
+        if img_url is not None:
+            img_path = self._download_img(qid, img_url, self._img_dir)
+        else:
+            img_path = None
+
         return Question(
             qid=qid,
             question=self._extract_question_text(header),
-            answers=options,
+            answers=answers,
             correct_answer=ans,
-            img_path=self._extract_img_url(header)
+            img_path=img_path
         )
 
     def _extract_question_text(self, h1) -> str:
@@ -91,7 +99,35 @@ class QuestionScraper:
 
     def _extract_img_url(self, h1) -> str | None:
         img = h1.find("img")
-        return img["src"] if img and img.has_attr("src") else None
+        if (img is not None) and img.has_attr("src"):
+            return img["src"]
+        else:
+            return None
+
+    def _download_img(self, qid:str, img_url: str, save_path: str) -> str:
+        """
+        Download the image from the given URL and save it to the specified
+        path.
+
+        :param qid: The question ID, used to create a unique filename.
+        :param img_url: The URL of the image to download.
+        :param save_path: The path of the directory where the image will be saved.
+        :return: The path to the saved image file.
+        """
+        response = requests.get(img_url)
+        if 200 <= response.status_code < 300:  # Successful response
+            img_ext = ".webp"
+            img_filename = f"{qid}{img_ext}"
+            img_path = os.path.join(save_path, img_filename)
+
+            with open(img_path, 'wb') as img_file:
+                img_file.write(response.content)
+            #TODO: Catch exceptions for file writing errors and invalid directory
+
+            return img_path
+
+        else:
+            raise ContentNotFoundException(f"Image not found at {img_url}")
 
     def _extract_answers(self, h1) -> (Set[str], str):
         options = []
@@ -111,16 +147,6 @@ class QuestionScraper:
         idx = ord(correct_letter) - ord("A")
         correct_answer = options[idx]
         return set(options), correct_answer
-
-    def _get_img(self, img_url: str, save_path: str):
-        """
-        Download the image from the given URL and save it to the specified
-        path.
-
-        :param img_url: The URL of the image to download.
-        :param save_path: The path where the image will be saved.
-        """
-        return
 
     def get_content(self, q_id: str) -> Question:
         """
