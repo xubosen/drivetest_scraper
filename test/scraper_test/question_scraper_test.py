@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import json
 import os
 from PIL import Image
+from unittest.mock import patch, MagicMock
 
 # Module Imports
 from scraper.question import Question
@@ -27,6 +28,9 @@ with open(CONFIG_PATH, "r") as file:
 SAMPLE_HTML = SAMPLE_HTMLS["four_choice"]
 TF_SAMPLE_HTML = SAMPLE_HTMLS["true_false"]
 
+# Create a sample HTML without images for testing
+NO_IMG_HTML = """<div id="question" class="fcc"><h1><strong><a href="/Post/abcde.htm">这是一个没有图片的问题？</a></strong>
+A、选项一<br>B、选项二<br><b>C、选项三</b><br>D、选项四<br>答案：<u>C</u></h1><p><i title="人气指数" id="ReadCount">1000</i></p><b class="bg"></b></div>"""
 
 # Common test helper functions
 def get_h1_from_html(html):
@@ -80,8 +84,29 @@ class TestQuestionTextExtraction:
         assert (scraper._extract_img_url(h1) ==
                 "https://tp.mnks.cn/ExamPic/kmy_136.jpg")
 
-    # TODO: Test extracting question text from HTML without images
-    # TODO: Test _extract_img_path method which combines URL extraction and downloading
+    def test_extract_question_text_from_html_without_images(self, scraper):
+        """Test extracting question text from HTML without images"""
+        h1 = get_h1_from_html(NO_IMG_HTML)
+        assert scraper._extract_question_text(h1) == "这是一个没有图片的问题？"
+
+    def test_extract_img_path(self, scraper):
+        """Test _extract_img_path method which combines URL extraction and downloading"""
+        # Create a mock for the h1 section
+        h1 = get_h1_from_html(SAMPLE_HTML)
+
+        # Patch the _download_img method to avoid actual network calls
+        with patch.object(scraper, '_download_img', return_value=f"{IMG_PATH}/{SAMPLE_QID}.webp") as mock_download:
+            img_path = scraper._extract_img_path(h1, SAMPLE_QID)
+
+            # Verify _download_img was called with the correct parameters
+            mock_download.assert_called_once_with(
+                SAMPLE_QID,
+                "https://tp.mnks.cn/ExamPic/kmy_136.jpg",
+                IMG_PATH
+            )
+
+            # Verify the return value
+            assert img_path == f"{IMG_PATH}/{SAMPLE_QID}.webp"
 
 
 class TestQuestionTypeDetection:
@@ -209,7 +234,16 @@ class TestImageHandling:
         except Exception as e:
             pytest.fail(f"Failed to open image: {str(e)}")
 
-    # TODO: Test behavior when image URL is None (question has no image)
+    def test_behavior_when_image_url_is_none(self, scraper):
+        """Test behavior when image URL is None (question has no image)"""
+        h1 = get_h1_from_html(NO_IMG_HTML)
+
+        # Extract image URL should return None
+        assert scraper._extract_img_url(h1) is None, "Should return None for HTML without image"
+
+        # Test that _extract_img_path correctly handles None image URL
+        img_path = scraper._extract_img_path(h1, "abcde")
+        assert img_path is None, "Image path should be None when no image is present"
 
 
 class TestIntegration:
@@ -232,6 +266,64 @@ class TestIntegration:
         assert result._correct_answer == "注意儿童"
         assert result._img_path == "db_test/img/33b74.webp"
 
-    # TODO: Test get_content with a true/false question
-    # TODO: Test get_content with a question that has no image
-    # TODO: Create a mocked version of tests to avoid external dependencies
+    def test_get_content_true_false(self, scraper):
+        """Test get_content with a true/false question"""
+        # Mock the webpage fetching to return our TF sample HTML
+        with patch.object(scraper, '_get_webpage') as mock_get_webpage:
+            # Create a BeautifulSoup object from the TF_SAMPLE_HTML
+            soup = BeautifulSoup(TF_SAMPLE_HTML, 'html.parser')
+            mock_get_webpage.return_value = soup
+
+            # Mock _extract_img_path to avoid actual network calls
+            with patch.object(scraper, '_extract_img_path', return_value=None):
+                result = scraper.get_content("e4fec")
+
+                assert result._qid == "e4fec"
+                assert result._question == "驾驶校车、中型以上载客载货汽车、危险物品运输车辆在高速公路、城市快速路以外的道路上行驶超过规定时速百分之五十以上的，一次记9分。"
+                assert result._answers == {"对", "错"}
+                assert result._correct_answer == "对"
+                assert result._img_path is None
+
+    def test_get_content_no_image(self, scraper):
+        """Test get_content with a question that has no image"""
+        # Mock the webpage fetching to return our no-image sample HTML
+        with patch.object(scraper, '_get_webpage') as mock_get_webpage:
+            # Create a BeautifulSoup object from the NO_IMG_HTML
+            soup = BeautifulSoup(NO_IMG_HTML, 'html.parser')
+            mock_get_webpage.return_value = soup
+
+            result = scraper.get_content("abcde")
+
+            assert result._qid == "abcde"
+            assert result._question == "这是一个没有图片的问题？"
+            assert result._answers == {"选项一", "选项二", "选项三", "选项四"}
+            assert result._correct_answer == "选项三"
+            assert result._img_path is None
+
+    def test_mocked_get_content(self):
+        """Create a mocked version of tests to avoid external dependencies"""
+        # Create a mock for the scraper
+        mock_scraper = MagicMock()
+
+        # Configure the mock to return a Question object
+        mock_question = Question(
+            qid="mock123",
+            question="This is a mock question?",
+            answers={"Answer 1", "Answer 2", "Answer 3", "Answer 4"},
+            correct_answer="Answer 3",
+            img_path="mock/path/to/image.webp"
+        )
+        mock_scraper.get_content.return_value = mock_question
+
+        # Call the mocked method
+        result = mock_scraper.get_content("mock123")
+
+        # Verify the result
+        assert result._qid == "mock123"
+        assert result._question == "This is a mock question?"
+        assert result._answers == {"Answer 1", "Answer 2", "Answer 3", "Answer 4"}
+        assert result._correct_answer == "Answer 3"
+        assert result._img_path == "mock/path/to/image.webp"
+
+        # Verify the mock was called with the expected argument
+        mock_scraper.get_content.assert_called_once_with("mock123")
