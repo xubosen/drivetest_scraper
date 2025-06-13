@@ -8,7 +8,9 @@ from PIL import Image
 # Module Imports
 from scraper.question import Question
 from scraper.jsyks_scraper._question_scraper import QuestionScraper
-from scraper.jsyks_scraper.custom_errors import JSYKSConnectionError, JSYKSContentRetrievalError
+from scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
+                                                 JSYKSContentRetrievalError,
+                                                 ConfigError)
 
 # Test constants
 SAMPLE_QID = "33b74"
@@ -43,7 +45,8 @@ class TestQuestionScraperSetup:
     def test_format_url(self, scraper):
         """Test the URL formatting function."""
         expected_url = "https://tiba.jsyks.com/Post/33b74.htm"
-        assert scraper._format_url(SAMPLE_QID) == expected_url, "URL formatting failed."
+        assert scraper._format_url(SAMPLE_QID) == expected_url, \
+            "URL formatting failed."
 
 
 class TestQuestionScraperWebFetching:
@@ -74,7 +77,11 @@ class TestQuestionTextExtraction:
     def test_extract_img_url_from_sample(self, scraper):
         """Test extracting image URL from sample HTML"""
         h1 = get_h1_from_html(SAMPLE_HTML)
-        assert scraper._extract_img_url(h1) == "https://tp.mnks.cn/ExamPic/kmy_136.jpg"
+        assert (scraper._extract_img_url(h1) ==
+                "https://tp.mnks.cn/ExamPic/kmy_136.jpg")
+
+    # TODO: Test extracting question text from HTML without images
+    # TODO: Test _extract_img_path method which combines URL extraction and downloading
 
 
 class TestQuestionTypeDetection:
@@ -87,12 +94,14 @@ class TestQuestionTypeDetection:
     def test_is_tf_with_four_choice(self, scraper):
         """Test if _is_tf correctly identifies four-choice questions"""
         h1 = get_h1_from_html(SAMPLE_HTML)
-        assert not scraper._is_tf(h1), "Four-choice question incorrectly identified as true/false"
+        assert not scraper._is_tf(h1), \
+            "Four-choice question incorrectly identified as true/false"
 
     def test_is_tf_with_true_false(self, scraper):
         """Test if _is_tf correctly identifies true/false questions"""
         h1 = get_h1_from_html(TF_SAMPLE_HTML)
-        assert scraper._is_tf(h1), "True/false question not correctly identified"
+        assert scraper._is_tf(h1), \
+            "True/false question not correctly identified"
 
 
 class TestAnswerExtraction:
@@ -114,7 +123,8 @@ class TestAnswerExtraction:
             "D": "学校区域"
         }
 
-        assert options == expected, "Four-choice options not correctly extracted"
+        assert options == expected, \
+            "Four-choice options not correctly extracted"
 
     def test_extract_tf(self, scraper):
         """Test extracting options from true/false questions"""
@@ -130,14 +140,16 @@ class TestAnswerExtraction:
         h1 = get_h1_from_html(SAMPLE_HTML)
         correct = scraper._extract_correct(h1)
 
-        assert correct == "注意儿童", "Correct answer not properly extracted from four-choice question"
+        assert correct == "注意儿童", \
+            "Correct answer not properly extracted from four-choice question"
 
     def test_extract_correct_for_true_false(self, scraper):
         """Test extracting correct answer from true/false questions"""
         h1 = get_h1_from_html(TF_SAMPLE_HTML)
         correct = scraper._extract_correct(h1)
 
-        assert correct == "对", "Correct answer not properly extracted from true/false question"
+        assert correct == "对", \
+            "Correct answer not properly extracted from true/false question"
 
     def test_extract_answers_for_multiple_choice(self, scraper):
         """Test extracting answers from multiple choice questions"""
@@ -146,7 +158,8 @@ class TestAnswerExtraction:
 
         expected = {"注意行人", "人行横道", "注意儿童", "学校区域"}
 
-        assert options == expected, "Answers not correctly extracted from multiple choice question"
+        assert options == expected, \
+            "Answers not correctly extracted from multiple choice question"
 
     def test_extract_answers_for_true_false(self, scraper):
         """Test extracting answers from true/false questions"""
@@ -155,7 +168,8 @@ class TestAnswerExtraction:
 
         expected = {"对", "错"}
 
-        assert options == expected, "Answers not correctly extracted from true/false question"
+        assert options == expected, \
+            "Answers not correctly extracted from true/false question"
 
 
 class TestImageHandling:
@@ -195,6 +209,8 @@ class TestImageHandling:
         except Exception as e:
             pytest.fail(f"Failed to open image: {str(e)}")
 
+    # TODO: Test behavior when image URL is None (question has no image)
+
 
 class TestIntegration:
     """End-to-end tests for question content retrieval"""
@@ -203,11 +219,10 @@ class TestIntegration:
     def scraper(self):
         return QuestionScraper(IMG_PATH, CONFIG_PATH)
 
-    def test_get_content(self, scraper):
+    def test_get_content_4c(self, scraper):
         """
-        Test the get_content method of QuestionScraper.
-        This test will check if the content is correctly extracted from the
-        webpage.
+        Test the get_content method of QuestionScraper with a four-choice
+        question.
         """
         result = scraper.get_content(SAMPLE_QID)
 
@@ -216,3 +231,7 @@ class TestIntegration:
         assert result._answers == {"注意行人", "人行横道", "注意儿童", "学校区域"}
         assert result._correct_answer == "注意儿童"
         assert result._img_path == "db_test/img/33b74.webp"
+
+    # TODO: Test get_content with a true/false question
+    # TODO: Test get_content with a question that has no image
+    # TODO: Create a mocked version of tests to avoid external dependencies
