@@ -5,8 +5,9 @@
 import requests
 from bs4 import BeautifulSoup, SoupStrainer
 import json
-from typing import Set, List
+from typing import Set, Dict
 import os.path
+import re
 
 # Module Import
 from scraper.question import Question
@@ -66,31 +67,13 @@ class QuestionScraper:
             raise JSYKSConnectionError(f"Failed to connect to {url}. "
                                        f"Status code: {response.status_code}")
 
-    def _extract_question(self, qid: str, soup: BeautifulSoup) -> Question:
-        """
-        Extract the question from the HTML soup based on format specified in
-        site_info.json.
-
-        :param qid: The question ID.
-        :param soup:
-        :return Question: The Question object containing the question content,
-        """
-        header = soup.find("h1")
-        answers, ans = self._extract_answers(header)
-
+    def _extract_img_path(self, header, qid):
         img_url = self._extract_img_url(header)
         if img_url is not None:
             img_path = self._download_img(qid, img_url, self._img_dir)
         else:
             img_path = None
-
-        return Question(
-            qid=qid,
-            question=self._extract_question_text(header),
-            answers=answers,
-            correct_answer=ans,
-            img_path=img_path
-        )
+        return img_path
 
     def _extract_question_text(self, h1) -> str:
         strong = h1.find("strong")
@@ -122,42 +105,88 @@ class QuestionScraper:
 
             with open(img_path, 'wb') as img_file:
                 img_file.write(response.content)
-            #TODO: Catch exceptions for file writing errors and invalid directory
+            #TODO: Catch file writing errors and invalid directory
 
             return img_path
 
         else:
             raise ContentNotFoundException(f"Image not found at {img_url}")
 
-    def _extract_answers(self, h1) -> (Set[str], str):
-        options = []
-        for elem in h1.contents:
-            if getattr(elem, "name", None) == "br":
-                continue
-            if isinstance(elem, str):
-                text = elem.strip()
-                if text and len(text) > 2 and text[1] == "、" and text[0] in "ABCD":
-                    options.append(text[2:].strip())
-            elif getattr(elem, "name", None) == "b":
-                b_text = elem.get_text(strip=True)
-                if b_text and len(b_text) > 2 and b_text[1] == "、" and b_text[0] in "ABCD":
-                    options.append(b_text[2:].strip())
-        u = h1.find("u")
-        correct_letter = u.get_text(strip=True)
-        idx = ord(correct_letter) - ord("A")
-        correct_answer = options[idx]
-        return set(options), correct_answer
+    def _extract_answers(self, header: BeautifulSoup) -> Set[str]:
+        """
+        Return the set of answers for the question.
+        """
+        if self._is_tf(header):
+            return self._extract_tf(header)
+        else:
+            letter_to_answer = self._extract_4c(header)
+            return set(letter_to_answer.values())
 
-    def get_content(self, q_id: str) -> Question:
+    def _is_tf(self, header: BeautifulSoup) -> bool:
         """
-        Retrieves the content of a question by its ID.
-        :param q_id:
-        :return: The Question object containing the question content, options,
-        image, and answer.
+        Return True if the question is a True/False question and False if it is a
+        four-choice question.
         """
-        url = self._format_url(q_id)
-        webpage = self._get_webpage(url)
-        return self._extract_question(q_id, webpage)
+        header_str = str(header)
+        # Look for 答案：<u>对</u> or 答案：<u>错</u>
+        return "答案：<u>对</u>" in header_str or "答案：<u>错</u>" in header_str
+
+    def _extract_4c(self, header: BeautifulSoup) -> Dict[str, str]:
+        """
+        Return the four choices of the question as a dictionary of letters to
+        answers.
+        """
+        header_str = str(header)
+        # Match A、xxx<br>, B、xxx<br>, <b>C、xxx</b><br>, D、xxx<br>
+        # Some text may be bolded with <b> tags
+        pattern = re.compile(r'(?:<b>)?([A-D])、(.*?)(?:</b>)?<br/>')
+        options = {}
+        matches = pattern.findall(header_str)
+        for letter, answer in matches:
+            options[letter.strip()] = answer.strip()
+        return options
+
+    def _extract_tf(self, header: BeautifulSoup) -> Set[str]:
+        """
+        Return the two choices of the question as a set
+        """
+        return {"对", "错"}
+
+    def _extract_correct(self, header: BeautifulSoup) -> str:
+        """
+        Return the correct answer for the question.
+
+        :param q_soup: The BeautifulSoup object containing the question.
+        """
+        if self._is_tf(header):
+            if "答案：<u>对</u>" in str(header):
+                return "对"
+            else:
+                return "错"
+        else:
+            letter_to_answer = self._extract_4c(header)
+            # Look between the <u> tags for the correct answer
+            correct_match = re.search(r'答案：<u>([A-D])</u>', str(header))
+            correct_letter = correct_match.group(1)
+            return letter_to_answer[correct_letter]
+
+    def get_content(self, qid: str) -> Question:
+            """
+            Retrieves the content of a question by its ID.
+            :param qid:
+            :return: The Question object containing the question content, options,
+            image, and answer.
+            """
+            url = self._format_url(qid)
+            webpage = self._get_webpage(url)
+            header = webpage.find("h1")
+            return Question(
+                qid=qid,
+                question=self._extract_question_text(header),
+                answers=self._extract_answers(header),
+                correct_answer=self._extract_correct(header),
+                img_path=self._extract_img_path(header, qid)
+            )
 
 
 class JSYKSConnectionError(ConnectionError):
