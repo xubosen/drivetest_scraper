@@ -5,11 +5,13 @@ import requests
 from bs4 import BeautifulSoup, SoupStrainer
 import json
 from typing import List, Dict
+import re
 
 # Local Imports
 from src.scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
                                                      JSYKSContentRetrievalError,
                                                      ConfigError)
+
 
 class QidScraper:
     """
@@ -51,7 +53,7 @@ class QidScraper:
         """
         qid_list = []
         for url in self._urls:
-            qid_list.extend(self._extract(self._get_qid_section(url)))
+            qid_list.extend(self._extract_qid(self._get_qid_section(url)))
         return qid_list
 
     def _get_qid_section(self, url: str) -> BeautifulSoup:
@@ -72,11 +74,25 @@ class QidScraper:
         else:
             raise JSYKSConnectionError(f"Failed to connect to {url}. ")
 
-    def _extract(self, soup: BeautifulSoup) -> List[str]:
+    def _extract_qid(self, soup: BeautifulSoup) -> List[str]:
         """
         Extract question ids from a BeautifulSoup object.
 
         :param soup: BeautifulSoup object containing the HTML content.
         :return: List of question ids extracted from the soup.
         """
-        raise NotImplementedError
+        qid_list = []
+        # Find all <a> tags
+        links = soup.find_all('a')
+
+        # Extract question ids from href attributes
+        for link in links:
+            href = link.get('href')
+            if href and '/Post/' in href:
+                # Extract the ID part using regex
+                match = re.search(r'/Post/([a-zA-Z0-9]+)\.htm', href)
+                if match:
+                    qid_list.append(match.group(1))
+                else:
+                    raise JSYKSContentRetrievalError
+        return qid_list
