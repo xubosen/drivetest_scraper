@@ -11,7 +11,7 @@ import os.path
 import re
 
 # Module Import
-from questions.question import Question
+from data_storage.in_memory.question import Question
 from scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
                                                  JSYKSContentRetrievalError)
 
@@ -48,10 +48,12 @@ class QuestionScraper:
         self._base_url = site_info["base_url"]
         self._url_placeholder = site_info["url_placeholder"]
         self._questn_id_name = site_info["id_name"]
+        self._logger.info(f"QuestionScraper initialized.")
 
     def _format_url(self, q_id: str) -> str:
         """
-        Formats the URL for the question by replacing the placeholder with the question ID.
+        Formats the URL for the question by replacing the placeholder with the
+        question ID.
 
         :param q_id: The ID of the question to retrieve
         :return: The complete URL to access the question
@@ -94,10 +96,14 @@ class QuestionScraper:
         - sec must be a valid BeautifulSoup object containing the question content
         - qid must be a valid question ID
         """
+        self._logger.debug(f"Checking for image in question {qid}")
         img_url = self._extract_img_url(sec)
         if img_url is not None:
+            self._logger.info(f"Image found for question {qid}, "
+                              f"downloading from {img_url}")
             return self._download_img(qid, img_url, self._img_dir)
         else:
+            self._logger.debug(f"No image found for question {qid}")
             return None
 
     def _extract_img_url(self, sec) -> str | None:
@@ -112,7 +118,8 @@ class QuestionScraper:
         """
         img = sec.find("img")
         if img:
-            return img["src"]
+            url = img["src"]
+            return url
         return None
 
     def _download_img(self, qid:str, img_url: str, save_path: str) -> str:
@@ -165,22 +172,28 @@ class QuestionScraper:
         - sec must be a valid BeautifulSoup object containing the question content
         - The question must be either a true/false or a four-choice question
         """
+        self._logger.debug("Getting answer options for question")
         if self._is_tf(sec):
+            self._logger.debug("Question is true/false type")
             return {"对", "错"}
         else:
+            self._logger.debug("Question is multiple choice type")
             letter_to_answer = self._extract_4c(sec)
-            return set(letter_to_answer.values())
+            options = set(letter_to_answer.values())
+            self._logger.debug(f"Extracted {len(options)} answer options")
+            return options
 
     def _is_tf(self, sec: BeautifulSoup) -> bool:
         """
-        Return True if the question is a True/False question and False if it is a
-        four-choice question.
+        Return True if the question is a True/False question and False if it is
+        a four-choice question.
 
         :param sec: BeautifulSoup object containing the question section
         :return: True if the question is true/false, False otherwise
 
         === Representational Invariants ===
-        - sec must be a valid BeautifulSoup object containing the question content
+        - sec must be a valid BeautifulSoup object containing the question
+        content
         - The question format must be either true/false or four-choice
         """
         # Look for 答案：<u>对</u> or 答案：<u>错</u>
@@ -192,12 +205,16 @@ class QuestionScraper:
         answers.
 
         :param sec: BeautifulSoup object containing the question section
-        :return: Dictionary mapping option letters (A-D) to their corresponding answer texts
+        :return: Dictionary mapping option letters (A-D) to their corresponding
+        answer texts
 
         === Representational Invariants ===
-        - sec must be a valid BeautifulSoup object containing the question content
-        - The question must be a four-choice question with options labeled A through D
-        - Each option must follow the pattern "X、[answer text]" where X is a letter A-D
+        - sec must be a valid BeautifulSoup object containing the question
+        content
+        - The question must be a four-choice question with options labeled A
+        through D
+        - Each option must follow the pattern "X、[answer text]" where X is a
+        letter A-D
         """
         pattern = re.compile(r'(?:<b>)?([A-D])、(.*?)(?:</b>)?<br/>')
         options = {}
@@ -245,12 +262,30 @@ class QuestionScraper:
         :raises JSYKSContentRetrievalError: If the question content cannot be
         parsed
         """
-        url = self._format_url(qid)
-        section = self._get_section(url)
-        return Question(
-            qid=qid,
-            question=self._get_q_txt(section),
-            answers=self._get_ops(section),
-            correct_answer=self._get_ans(section),
-            img_path=self._get_img_path(section, qid)
-        )
+        self._logger.info(f"Retrieving question with ID: {qid}")
+        try:
+            url = self._format_url(qid)
+            section = self._get_section(url)
+
+            question_text = self._get_q_txt(section)
+            answers = self._get_ops(section)
+            correct_answer = self._get_ans(section)
+            img_path = self._get_img_path(section, qid)
+
+            question = Question(
+                qid=qid,
+                question=question_text,
+                answers=answers,
+                correct_answer=correct_answer,
+                img_path=img_path
+            )
+
+            self._logger.info(f"Successfully retrieved question {qid}")
+            return question
+        except (JSYKSConnectionError, JSYKSContentRetrievalError) as e:
+            self._logger.error(f"Failed to retrieve question {qid}: {str(e)}")
+            raise
+        except Exception as e:
+            self._logger.critical(f"Unexpected error retrieving question "
+                                  f"{qid}: {str(e)}")
+            raise JSYKSContentRetrievalError(f"Unexpected error: {str(e)}")

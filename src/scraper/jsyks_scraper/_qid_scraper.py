@@ -31,7 +31,8 @@ class QidScraper:
         Initialize the QidScraper with a configuration file path.
 
         :param logger: Logger instance for logging the scraping process
-        :param config_path: Path to the JSON configuration file containing site information
+        :param config_path: Path to the JSON configuration file containing site
+        information
         """
 
         # Initialize empty attributes

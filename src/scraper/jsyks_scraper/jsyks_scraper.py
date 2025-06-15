@@ -6,7 +6,7 @@ from logging import Logger
 from scraper.scraper_interface import Scraper
 from scraper.jsyks_scraper._qid_scraper import QidScraper
 from scraper.jsyks_scraper._question_scraper import QuestionScraper
-from questions.question_bank import QuestionBank
+from data_storage.in_memory.question_bank import QuestionBank
 
 class JSYKSScraper(Scraper):
     """
@@ -25,7 +25,8 @@ class JSYKSScraper(Scraper):
             logger (Logger): The logger to log messages.
         """
         self.qid_scraper = QidScraper(logger, config_path)
-        self.question_scraper = QuestionScraper(qb, logger, config_path)
+        self.question_scraper = QuestionScraper(qb.get_img_dir(), config_path,
+                                                logger)
 
     def fill_question_bank(self) -> None:
         pass

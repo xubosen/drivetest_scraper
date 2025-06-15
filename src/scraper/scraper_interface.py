@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from logging import Logger
 
-from questions.question_bank import QuestionBank
+from data_storage.in_memory.question_bank import QuestionBank
 
 class Scraper(ABC):
     """
