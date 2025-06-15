@@ -1,6 +1,6 @@
 from typing import Dict, Set, List
 
-from questions.question import Question
+from data_storage.in_memory.question import Question
 
 class QuestionBank:
     """
