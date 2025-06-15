@@ -90,7 +90,7 @@ class QidScraper:
         for li in list_item:
             a = li.find('a')
             # Look inside the tag to find the chapter name
-            index, descr = tuple(a.string.split(":"))
+            index, descr = tuple(a.get_text().split(":"))
 
             # Convert index to integer (第1章 -> 1)
             chapter_num = int(re.search(r'第(\d+)章', index).group(1))
