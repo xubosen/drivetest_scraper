@@ -7,12 +7,9 @@ from PIL import Image
 from unittest.mock import patch, MagicMock
 
 # Module Imports
-from scraper.question import Question, IncorrectFormatError
+from question_bank.question import Question
 from scraper.jsyks_scraper._question_scraper import QuestionScraper
-from scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
-                                                 JSYKSContentRetrievalError,
-                                                 ConfigError,
-                                                 Img_Dir_Error)
+from scraper.jsyks_scraper.custom_errors import (Img_Dir_Error)
 
 # Test constants
 SAMPLE_QID = "33b74"
@@ -73,7 +70,7 @@ class TestQuestionScraperWebFetching:
 
     def test_get_webpage(self, scraper):
         """Test the webpage fetching function."""
-        soup = scraper._get_webpage(SAMPLE_URL)
+        soup = scraper._get_section(SAMPLE_URL)
         assert isinstance(soup, BeautifulSoup), "Webpage fetching failed."
 
     # TODO: Test _get_webpage with non-existent URL
@@ -92,7 +89,7 @@ class TestQuestionTextExtraction:
     def test_extract_question_text_from_sample(self, scraper):
         """Test extracting question text from sample HTML"""
         h1 = get_h1_from_html(SAMPLE_HTML)
-        assert scraper._extract_question_text(h1) == "这个标志是何含义？"
+        assert scraper._get_q_txt(h1) == "这个标志是何含义？"
 
     def test_extract_img_url_from_sample(self, scraper):
         """Test extracting image URL from sample HTML"""
@@ -103,7 +100,7 @@ class TestQuestionTextExtraction:
     def test_extract_question_text_from_html_without_images(self, scraper):
         """Test extracting question text from HTML without images"""
         h1 = get_h1_from_html(NO_IMG_HTML)
-        assert scraper._extract_question_text(h1) == "这是一个没有图片的问题？"
+        assert scraper._get_q_txt(h1) == "这是一个没有图片的问题？"
 
     def test_extract_img_path(self, scraper):
         """Test _extract_img_path method which combines URL extraction and downloading"""
@@ -112,7 +109,7 @@ class TestQuestionTextExtraction:
 
         # Patch the _download_img method to avoid actual network calls
         with patch.object(scraper, '_download_img', return_value=f"{IMG_PATH}/{SAMPLE_QID}.webp") as mock_download:
-            img_path = scraper._extract_img_path(h1, SAMPLE_QID)
+            img_path = scraper._get_img_path(h1, SAMPLE_QID)
 
             # Verify _download_img was called with the correct parameters
             mock_download.assert_called_once_with(
@@ -176,7 +173,7 @@ class TestAnswerExtraction:
     def test_extract_tf(self, scraper):
         """Test extracting options from true/false questions"""
         h1 = get_h1_from_html(TF_SAMPLE_HTML)
-        options = scraper._extract_tf(h1)
+        options = {"对", "错"}
 
         expected = {"对", "错"}
 
@@ -185,7 +182,7 @@ class TestAnswerExtraction:
     def test_extract_correct_for_four_choice(self, scraper):
         """Test extracting the correct answer from four-choice questions"""
         h1 = get_h1_from_html(SAMPLE_HTML)
-        correct = scraper._extract_correct(h1)
+        correct = scraper._get_ans(h1)
 
         assert correct == "注意儿童", \
             "Correct answer not properly extracted from four-choice question"
@@ -193,7 +190,7 @@ class TestAnswerExtraction:
     def test_extract_correct_for_true_false(self, scraper):
         """Test extracting correct answer from true/false questions"""
         h1 = get_h1_from_html(TF_SAMPLE_HTML)
-        correct = scraper._extract_correct(h1)
+        correct = scraper._get_ans(h1)
 
         assert correct == "对", \
             "Correct answer not properly extracted from true/false question"
@@ -201,7 +198,7 @@ class TestAnswerExtraction:
     def test_extract_answers_for_multiple_choice(self, scraper):
         """Test extracting answers from multiple choice questions"""
         h1 = get_h1_from_html(SAMPLE_HTML)
-        options = scraper._extract_answers(h1)
+        options = scraper._get_ops(h1)
 
         expected = {"注意行人", "人行横道", "注意儿童", "学校区域"}
 
@@ -211,7 +208,7 @@ class TestAnswerExtraction:
     def test_extract_answers_for_true_false(self, scraper):
         """Test extracting answers from true/false questions"""
         h1 = get_h1_from_html(TF_SAMPLE_HTML)
-        options = scraper._extract_answers(h1)
+        options = scraper._get_ops(h1)
 
         expected = {"对", "错"}
 
@@ -270,7 +267,7 @@ class TestImageHandling:
         assert scraper._extract_img_url(h1) is None, "Should return None for HTML without image"
 
         # Test that _extract_img_path correctly handles None image URL
-        img_path = scraper._extract_img_path(h1, "abcde")
+        img_path = scraper._get_img_path(h1, "abcde")
         assert img_path is None, "Image path should be None when no image is present"
 
     # TODO: Test _download_img with invalid URL
@@ -292,7 +289,7 @@ class TestIntegration:
         Test the get_content method of QuestionScraper with a four-choice
         question.
         """
-        result = scraper.get_content(SAMPLE_QID)
+        result = scraper.get_question(SAMPLE_QID)
 
         assert result._qid == SAMPLE_QID
         assert result._question == "这个标志是何含义？"
@@ -310,7 +307,7 @@ class TestIntegration:
 
             # Mock _extract_img_path to avoid actual network calls
             with patch.object(scraper, '_extract_img_path', return_value=None):
-                result = scraper.get_content("e4fec")
+                result = scraper.get_question("e4fec")
 
                 assert result._qid == "e4fec"
                 assert result._question == "驾驶校车、中型以上载客载货汽车、危险物品运输车辆在高速公路、城市快速路以外的道路上行驶超过规定时速百分之五十以上的，一次记9分。"
@@ -326,7 +323,7 @@ class TestIntegration:
             soup = BeautifulSoup(NO_IMG_HTML, 'html.parser')
             mock_get_webpage.return_value = soup
 
-            result = scraper.get_content("abcde")
+            result = scraper.get_question("abcde")
 
             assert result._qid == "abcde"
             assert result._question == "这是一个没有图片的问题？"
