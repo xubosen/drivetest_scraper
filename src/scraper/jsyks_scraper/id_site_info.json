@@ -1,0 +1,7 @@
+{
+  "base_url": "https://tiba.jsyks.com/kmytk",
+  "url_format": "https://tiba.jsyks.com/kmytk_{PageId}",
+  "c_lst_cls_name": "tikulist fcc",
+  "page_bar_cls_name": "PageL",
+  "q_lst_cls_name": "ListCnt"
+}

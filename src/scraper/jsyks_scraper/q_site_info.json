@@ -1,10 +1,5 @@
 {
-  "qid_base_url": "https://tiba.jsyks.com/kmytk_{PageId}",
-  "qid_page_placeholder": "{PageId}",
-  "qid_page_count": {"1501": 15, "1502": 26, "1503": 6, "1504" : 4, "1505": 5,
-    "1506": 2, "1507": 7},
-  "qid_div_id": "ListCnt",
-  "url": "https://tiba.jsyks.com/Post/{QuestionId}.htm",
+  "base_url": "https://tiba.jsyks.com/Post/{QuestionId}.htm",
   "url_placeholder": "{QuestionId}",
   "div_id": "question",
   "html_examples": {
