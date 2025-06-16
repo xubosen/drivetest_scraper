@@ -33,12 +33,14 @@ class QuestionScraper:
         file.
 
         :param img_dir: Directory path where images will be saved
-        :param config_path: Path to the JSON configuration file containing site information
+        :param config_path: Path to the JSON configuration file containing site
+        information
         :param logger: Logger instance for logging information and errors
 
         === Representational Invariants ===
         - img_dir must be a valid directory path with write permissions
-        - config_path must point to a valid JSON file with the required site information
+        - config_path must point to a valid JSON file with the required site
+        information
         """
         logger.info("Initializing QuestionScraper")
         self._logger = logger
@@ -93,7 +95,8 @@ class QuestionScraper:
         :return: Path to the downloaded image or None if no image exists
 
         === Representational Invariants ===
-        - sec must be a valid BeautifulSoup object containing the question content
+        - sec must be a valid BeautifulSoup object containing the question
+        content
         - qid must be a valid question ID
         """
         self._logger.debug(f"Checking for image in question {qid}")
@@ -114,7 +117,8 @@ class QuestionScraper:
         :return: URL of the image as a string, or None if no image is found
 
         === Representational Invariants ===
-        - sec must be a valid BeautifulSoup object containing the question content
+        - sec must be a valid BeautifulSoup object containing the question
+        content
         """
         img = sec.find("img")
         if img:
@@ -129,7 +133,8 @@ class QuestionScraper:
 
         :param qid: The question ID, used to create a unique filename.
         :param img_url: The URL of the image to download.
-        :param save_path: The path of the directory where the image will be saved.
+        :param save_path: The path of the directory where the image will be
+        saved.
         :return: The path to the saved image file.
         :raises JSYKSConnectionError: If downloading the image fails
 
@@ -156,8 +161,10 @@ class QuestionScraper:
         :return: The text of the question as a string
 
         === Representational Invariants ===
-        - sec must be a valid BeautifulSoup object containing the question content
-        - The question section must contain an anchor tag with the question text
+        - sec must be a valid BeautifulSoup object containing the question
+        content
+        - The question section must contain an anchor tag with the question
+        text
         """
         return sec.find("a").get_text()
 
@@ -169,8 +176,10 @@ class QuestionScraper:
         :return: Set of possible answers for the question
 
         === Representational Invariants ===
-        - sec must be a valid BeautifulSoup object containing the question content
-        - The question must be either a true/false or a four-choice question
+        - sec must be a valid BeautifulSoup object containing the question
+        content
+        - The question must be either a true/false or a four-choice
+        question
         """
         self._logger.debug("Getting answer options for question")
         if self._is_tf(sec):
@@ -228,12 +237,15 @@ class QuestionScraper:
 
         :param sec: BeautifulSoup object containing the question section
         :return: The correct answer as a string
-        :raises JSYKSContentRetrievalError: If the correct answer cannot be determined
+        :raises JSYKSContentRetrievalError: If the correct answer cannot be
+        determined
 
         === Representational Invariants ===
-        - sec must be a valid BeautifulSoup object containing the question content
+        - sec must be a valid BeautifulSoup object containing the question
+        content
         - The correct answer must be marked in the HTML with <u> tags
-        - For multiple choice questions, the answer must be one of the options A-D
+        - For multiple choice questions, the answer must be one of the options
+        A-D
         """
         if self._is_tf(sec):
             if "答案：<u>对</u>" in str(sec):

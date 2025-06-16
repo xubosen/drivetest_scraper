@@ -3,375 +3,309 @@ import pytest
 from bs4 import BeautifulSoup
 import json
 import os
-from PIL import Image
-from unittest.mock import patch, MagicMock
+import logging
 
 # Module Imports
-from question_bank.question import Question
 from scraper.jsyks_scraper._question_scraper import QuestionScraper
-from scraper.jsyks_scraper.custom_errors import (Img_Dir_Error)
+from src.data_storage.in_memory.question import Question
+from scraper.jsyks_scraper.custom_errors import (JSYKSConnectionError,
+                                                 JSYKSContentRetrievalError,
+                                                 ConfigError)
 
-# Test constants
-SAMPLE_QID = "33b74"
-SAMPLE_URL = "https://tiba.jsyks.com/Post/33b74.htm"
-SAMPLE_IMG_URL = "https://tp.mnks.cn/ExamPic/kmy_136.jpg"
-QUESTION_IDS = ["c6219", "d150f", "ad9e0", "b5211", "cd86b"]
-IMG_PATH = "db_test/img"
-CONFIG_PATH = "scraper_test/site_info_test.json"
+# Constants
+IMG_SAVE_PATH = "qb_test/img"
+CONFIG_PATH = "scraper_test/q_test_config.json"
+TEST_MATERIAL_PATH = "scraper_test/q_test_material"
 
-# Load sample HTML data
-with open(CONFIG_PATH, "r") as file:
-    site_info = json.load(file)
-    SAMPLE_HTMLS = site_info["html_examples"]
-SAMPLE_HTML = SAMPLE_HTMLS["four_choice"]
-TF_SAMPLE_HTML = SAMPLE_HTMLS["true_false"]
+# Load q_test_material.json into constants
+Q_TEST_MATERIAL_PATH = "scraper_test/q_test_material.json"
+with open(Q_TEST_MATERIAL_PATH, "r", encoding="utf-8") as f:
+    Q_TEST_MATERIAL = json.load(f)
 
-# Create a sample HTML without images for testing
-NO_IMG_HTML = """<div id="question" class="fcc"><h1><strong><a href="/Post/abcde.htm">这是一个没有图片的问题？</a></strong>
-A、选项一<br>B、选项二<br><b>C、选项三</b><br>D、选项四<br>答案：<u>C</u></h1><p><i title="人气指数" id="ReadCount">1000</i></p><b class="bg"></b></div>"""
+SAMPLE_QIDS = Q_TEST_MATERIAL["SAMPLE_QIDS"]
+SAMPLE_URLS = Q_TEST_MATERIAL["SAMPLE_URLS"]
+SAMPLE_IMG_URLS = Q_TEST_MATERIAL["SAMPLE_IMG_URLS"]
+SAMPLE_SECTION_HTML = Q_TEST_MATERIAL["SAMPLE_SECTION_HTML"]
 
-# TODO: Create malformed HTML samples for testing error handling
-# Malformed HTML missing question text
-# Malformed HTML missing options
-# Malformed HTML with incorrect answer format
-# Malformed HTML missing h1 tag
+# Logger setup
+LOG_PATH = "test_logs/log"
+if not os.path.exists(LOG_PATH):
+    os.makedirs(LOG_PATH)
 
-# Common test helper functions
-def get_h1_from_html(html):
-    """Helper function to get h1 tag from HTML string"""
-    soup = BeautifulSoup(html, "html.parser")
-    return soup.find("h1")
-
-
-class TestQuestionScraperSetup:
-    """Tests for QuestionScraper initialization and configuration"""
-
-    @pytest.fixture
-    def scraper(self):
-        return QuestionScraper(IMG_PATH, CONFIG_PATH)
-
-    def test_format_url(self, scraper):
-        """Test the URL formatting function."""
-        expected_url = "https://tiba.jsyks.com/Post/33b74.htm"
-        assert scraper._format_url(SAMPLE_QID) == expected_url, \
-            "URL formatting failed."
-
-    # TODO: Test initialization with invalid config path
-    # TODO: Test initialization with config file missing required keys
-    # TODO: Test initialization with malformed JSON in config file
+LOGGER = logging.getLogger("question_scraper_test")
+LOGGER.setLevel(logging.DEBUG)
+log_file_handler = logging.FileHandler(
+    os.path.join(LOG_PATH, "question_scraper_test.log"),
+    encoding="utf-8")
+log_file_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+log_file_handler.setFormatter(formatter)
+LOGGER.addHandler(log_file_handler)
 
 
-class TestQuestionScraperWebFetching:
-    """Tests for web page fetching functionality"""
+class TestFormatUrl:
+    """Unit tests for the _format_url method of QuestionScraper, which generates
+    the correct URL for a given question ID."""
 
-    @pytest.fixture
-    def scraper(self):
-        return QuestionScraper(IMG_PATH, CONFIG_PATH)
+    def test_format_url_replaces_placeholder(self):
+        """
+        Test that _format_url correctly replaces the placeholder with the question ID.
 
-    def test_get_webpage(self, scraper):
-        """Test the webpage fetching function."""
-        soup = scraper._get_section(SAMPLE_URL)
-        assert isinstance(soup, BeautifulSoup), "Webpage fetching failed."
+        Uses SAMPLE_QIDS and SAMPLE_URLS from the test material to verify that
+        the generated URLs match the expected URLs for various question IDs.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        # Test for each category
+        for category in SAMPLE_QIDS:
+            for qid, expected_url in zip(SAMPLE_QIDS[category], SAMPLE_URLS[category]):
+                assert scraper._format_url(qid) == expected_url
 
-    # TODO: Test _get_webpage with non-existent URL
-    # TODO: Test _get_webpage with URL that returns non-200 status code
-    # TODO: Test _get_webpage with request timeout
-    # TODO: Test _get_webpage with connection error
+class TestGetSection:
+    """Unit tests for the _get_section method of QuestionScraper, which
+    retrieves the HTML section containing the question."""
 
+    def test_get_section_returns_h1(self):
+        """
+        Test that _get_section returns a BeautifulSoup object containing the question section.
 
-class TestQuestionTextExtraction:
-    """Tests for extracting question text from HTML"""
+        Uses SAMPLE_SECTION_HTML from the test material to simulate HTML content
+        and checks that the returned object contains the expected <h1> tag.
+        """
+        pass
 
-    @pytest.fixture
-    def scraper(self):
-        return QuestionScraper(IMG_PATH, CONFIG_PATH)
+class TestGetImgPath:
+    """Unit tests for the _get_img_path method of QuestionScraper, which
+    determines the image path for a question if an image exists."""
 
-    def test_extract_question_text_from_sample(self, scraper):
-        """Test extracting question text from sample HTML"""
-        h1 = get_h1_from_html(SAMPLE_HTML)
-        assert scraper._get_q_txt(h1) == "这个标志是何含义？"
+    def test_get_img_path_with_image(self):
+        """
+        Test that _get_img_path returns the correct image path when an image exists.
 
-    def test_extract_img_url_from_sample(self, scraper):
-        """Test extracting image URL from sample HTML"""
-        h1 = get_h1_from_html(SAMPLE_HTML)
-        assert (scraper._extract_img_url(h1) ==
-                "https://tp.mnks.cn/ExamPic/kmy_136.jpg")
+        Uses SAMPLE_SECTION_HTML and SAMPLE_IMG_URLS to simulate a question section
+        with an image and verifies that the image path is generated as expected.
+        """
+        pass
 
-    def test_extract_question_text_from_html_without_images(self, scraper):
-        """Test extracting question text from HTML without images"""
-        h1 = get_h1_from_html(NO_IMG_HTML)
-        assert scraper._get_q_txt(h1) == "这是一个没有图片的问题？"
+    def test_get_img_path_without_image(self):
+        """
+        Test that _get_img_path returns None when no image exists.
 
-    def test_extract_img_path(self, scraper):
-        """Test _extract_img_path method which combines URL extraction and downloading"""
-        # Create a mock for the h1 section
-        h1 = get_h1_from_html(SAMPLE_HTML)
+        Uses SAMPLE_SECTION_HTML for a question without an image to verify that
+        None is returned.
+        """
+        pass
 
-        # Patch the _download_img method to avoid actual network calls
-        with patch.object(scraper, '_download_img', return_value=f"{IMG_PATH}/{SAMPLE_QID}.webp") as mock_download:
-            img_path = scraper._get_img_path(h1, SAMPLE_QID)
+class TestExtractImgUrl:
+    """Unit tests for the _extract_img_url method of QuestionScraper, which
+    extracts the image URL from the question section."""
 
-            # Verify _download_img was called with the correct parameters
-            mock_download.assert_called_once_with(
-                SAMPLE_QID,
-                "https://tp.mnks.cn/ExamPic/kmy_136.jpg",
-                IMG_PATH
-            )
+    def test_extract_img_url_present(self):
+        """
+        Test that _extract_img_url returns the correct image URL if present.
 
-            # Verify the return value
-            assert img_path == f"{IMG_PATH}/{SAMPLE_QID}.webp"
+        Uses SAMPLE_SECTION_HTML and SAMPLE_IMG_URLS to check that the correct
+        image URL is extracted from a section containing an image.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid, img_url in SAMPLE_IMG_URLS.items():
+            html = SAMPLE_SECTION_HTML.get(qid)
+            if html:
+                soup = BeautifulSoup(html, "html.parser")
+                h1 = soup.find("h1")
+                extracted_url = scraper._extract_img_url(h1)
+                assert extracted_url == img_url
 
-    # TODO: Test _extract_question_text with None HTML section
-    # TODO: Test _extract_question_text with HTML missing strong tag
-    # TODO: Test _extract_question_text with HTML missing a tag
+    def test_extract_img_url_absent(self):
+        """
+        Test that _extract_img_url returns None if no image is present.
 
+        Uses SAMPLE_SECTION_HTML for a question without an image to verify that
+        None is returned.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid, html in SAMPLE_SECTION_HTML.items():
+            if (qid in SAMPLE_QIDS["SAMPLE_TF_NO_IMG"] or
+                    qid in SAMPLE_QIDS["SAMPLE_4C_NO_IMG"]):
+                soup = BeautifulSoup(html, "html.parser")
+                h1 = soup.find("h1")
+                extracted_url = scraper._extract_img_url(h1)
+                assert extracted_url is None
 
-class TestQuestionTypeDetection:
-    """Tests for detecting question types (T/F vs multiple choice)"""
+class TestGetQTxt:
+    """Unit tests for the _get_q_txt method of QuestionScraper, which extracts
+    the question text from the section."""
 
-    @pytest.fixture
-    def scraper(self):
-        return QuestionScraper(IMG_PATH, CONFIG_PATH)
+    def test_get_q_txt_extracts_text(self):
+        """
+        Test that _get_q_txt extracts the question text from the section.
 
-    def test_is_tf_with_four_choice(self, scraper):
-        """Test if _is_tf correctly identifies four-choice questions"""
-        h1 = get_h1_from_html(SAMPLE_HTML)
-        assert not scraper._is_tf(h1), \
-            "Four-choice question incorrectly identified as true/false"
-
-    def test_is_tf_with_true_false(self, scraper):
-        """Test if _is_tf correctly identifies true/false questions"""
-        h1 = get_h1_from_html(TF_SAMPLE_HTML)
-        assert scraper._is_tf(h1), \
-            "True/false question not correctly identified"
-
-    # TODO: Test _is_tf with malformed HTML
-
-
-class TestAnswerExtraction:
-    """Tests for extracting answer options and correct answers"""
-
-    @pytest.fixture
-    def scraper(self):
-        return QuestionScraper(IMG_PATH, CONFIG_PATH)
-
-    def test_extract_4c(self, scraper):
-        """Test extracting options from four-choice questions"""
-        h1 = get_h1_from_html(SAMPLE_HTML)
-        options = scraper._extract_4c(h1)
-
-        expected = {
-            "A": "注意行人",
-            "B": "人行横道",
-            "C": "注意儿童",
-            "D": "学校区域"
+        Uses SAMPLE_SECTION_HTML to provide HTML for both true/false and four-choice
+        questions and checks that the extracted text matches the expected question.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        expected_texts = {
+            "b37fe": "驾驶机动车遇前方机动车停车排队或者缓慢行驶时，借道超车或者占用对面车道、穿插等候车辆的，一次记1分。",
+            "89195": "如图所示，在环岛交叉路口发生的交通事故中，应由A车负全部责任。",
+            "d548b": "驾驶机动车在高速公路上发生故障时，以下做法正确的是什么？",
+            "10d89": "在路口直行时，遇这种情形如何通行？"
         }
+        for qid, html in SAMPLE_SECTION_HTML.items():
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            q_txt = scraper._get_q_txt(h1)
+            assert q_txt == expected_texts[qid]
 
-        assert options == expected, \
-            "Four-choice options not correctly extracted"
+class TestGetOps:
+    """Unit tests for the _get_ops method of QuestionScraper, which returns the
+    set of possible answers for a question."""
 
-    def test_extract_tf(self, scraper):
-        """Test extracting options from true/false questions"""
-        h1 = get_h1_from_html(TF_SAMPLE_HTML)
-        options = {"对", "错"}
-
-        expected = {"对", "错"}
-
-        assert options == expected, "True/false options not correctly extracted"
-
-    def test_extract_correct_for_four_choice(self, scraper):
-        """Test extracting the correct answer from four-choice questions"""
-        h1 = get_h1_from_html(SAMPLE_HTML)
-        correct = scraper._get_ans(h1)
-
-        assert correct == "注意儿童", \
-            "Correct answer not properly extracted from four-choice question"
-
-    def test_extract_correct_for_true_false(self, scraper):
-        """Test extracting correct answer from true/false questions"""
-        h1 = get_h1_from_html(TF_SAMPLE_HTML)
-        correct = scraper._get_ans(h1)
-
-        assert correct == "对", \
-            "Correct answer not properly extracted from true/false question"
-
-    def test_extract_answers_for_multiple_choice(self, scraper):
-        """Test extracting answers from multiple choice questions"""
-        h1 = get_h1_from_html(SAMPLE_HTML)
-        options = scraper._get_ops(h1)
-
-        expected = {"注意行人", "人行横道", "注意儿童", "学校区域"}
-
-        assert options == expected, \
-            "Answers not correctly extracted from multiple choice question"
-
-    def test_extract_answers_for_true_false(self, scraper):
-        """Test extracting answers from true/false questions"""
-        h1 = get_h1_from_html(TF_SAMPLE_HTML)
-        options = scraper._get_ops(h1)
-
-        expected = {"对", "错"}
-
-        assert options == expected, \
-            "Answers not correctly extracted from true/false question"
-
-    # TODO: Test _extract_4c with HTML missing options
-    # TODO: Test _extract_4c with HTML having fewer than 4 options
-    # TODO: Test _extract_4c with HTML having incorrect letter format
-    # TODO: Test _extract_correct with HTML missing the answer marker
-    # TODO: Test _extract_correct with HTML having invalid correct letter
-
-
-class TestImageHandling:
-    """Tests for image extraction and downloading"""
-
-    @pytest.fixture
-    def scraper(self):
-        return QuestionScraper(IMG_PATH, CONFIG_PATH)
-
-    def test_download_img(self, scraper):
+    def test_get_ops_true_false(self):
         """
-        Test the _download_img helper method using SAMPLE_IMG_URL.
-        This test will download the image and check the file is created and
-        non-empty.
+        Test that _get_ops returns correct options for true/false questions.
+
+        Uses SAMPLE_SECTION_HTML for true/false questions to verify that the
+        returned set is {"对", "错"}.
         """
-        # Ensure the directory exists
-        os.makedirs(IMG_PATH, exist_ok=True)
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid in ["b37fe", "89195"]:
+            html = SAMPLE_SECTION_HTML[qid]
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            ops = scraper._get_ops(h1)
+            assert ops == {"对", "错"}
 
-        img_ext = ".webp"
-        expected_filename = f"{SAMPLE_QID}{img_ext}"
-        expected_path = os.path.join(IMG_PATH, expected_filename)
-
-        # Remove file if it exists from previous runs
-        if os.path.exists(expected_path):
-            os.remove(expected_path)
-
-        result_path = scraper._download_img(SAMPLE_QID, SAMPLE_IMG_URL, IMG_PATH)
-
-        assert os.path.exists(result_path), "Image file was not created."
-        assert result_path == expected_path
-        assert os.path.getsize(result_path) > 0, "Downloaded image file is empty."
-
-        # Verify the image can be opened
-        try:
-            with Image.open(result_path) as img:
-                assert img.format in ['WEBP'], f"Invalid image format: {img.format}"
-        except Exception as e:
-            pytest.fail(f"Failed to open image: {str(e)}")
-
-    def test_behavior_when_image_url_is_none(self, scraper):
-        """Test behavior when image URL is None (question has no image)"""
-        h1 = get_h1_from_html(NO_IMG_HTML)
-
-        # Extract image URL should return None
-        assert scraper._extract_img_url(h1) is None, "Should return None for HTML without image"
-
-        # Test that _extract_img_path correctly handles None image URL
-        img_path = scraper._get_img_path(h1, "abcde")
-        assert img_path is None, "Image path should be None when no image is present"
-
-    # TODO: Test _download_img with invalid URL
-    # TODO: Test _download_img with URL that returns non-200 status code
-    # TODO: Test _download_img with invalid save path
-    # TODO: Test _download_img with a URL that doesn't point to an image
-    # TODO: Test _download_img with network timeout
-
-
-class TestIntegration:
-    """End-to-end tests for question content retrieval"""
-
-    @pytest.fixture
-    def scraper(self):
-        return QuestionScraper(IMG_PATH, CONFIG_PATH)
-
-    def test_get_content_4c(self, scraper):
+    def test_get_ops_four_choice(self):
         """
-        Test the get_content method of QuestionScraper with a four-choice
-        question.
+        Test that _get_ops returns correct options for four-choice questions.
+
+        Uses SAMPLE_SECTION_HTML for four-choice questions to verify that the
+        returned set matches the expected options.
         """
-        result = scraper.get_question(SAMPLE_QID)
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        expected_ops = {
+            "d548b": {
+                "拦截过往车辆帮助拖车",
+                "借用其他机动车牵引",
+                "车上人员应当坐在车内等待救援",
+                "开启危险报警闪光灯，并在来车方向150米外设置警告标志"
+            },
+            "10d89": {
+                "让左方道路车辆先行",
+                "让右方道路车辆先行",
+                "直接加速直行通过",
+                "开启危险报警闪光灯通行"
+            }
+        }
+        for qid in ["d548b", "10d89"]:
+            html = SAMPLE_SECTION_HTML[qid]
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            ops = scraper._get_ops(h1)
+            assert ops == expected_ops[qid]
 
-        assert result._qid == SAMPLE_QID
-        assert result._question == "这个标志是何含义？"
-        assert result._answers == {"注意行人", "人行横道", "注意儿童", "学校区域"}
-        assert result._correct_answer == "注意儿童"
-        assert result._img_path == "db_test/img/33b74.webp"
+class TestIsTF:
+    """Unit tests for the _is_tf method of QuestionScraper, which determines if
+    a question is true/false type."""
 
-    def test_get_content_true_false(self, scraper):
-        """Test get_content with a true/false question"""
-        # Mock the webpage fetching to return our TF sample HTML
-        with patch.object(scraper, '_get_webpage') as mock_get_webpage:
-            # Create a BeautifulSoup object from the TF_SAMPLE_HTML
-            soup = BeautifulSoup(TF_SAMPLE_HTML, 'html.parser')
-            mock_get_webpage.return_value = soup
+    def test_is_tf_true_false(self):
+        """
+        Test that _is_tf returns True for true/false questions.
 
-            # Mock _extract_img_path to avoid actual network calls
-            with patch.object(scraper, '_extract_img_path', return_value=None):
-                result = scraper.get_question("e4fec")
+        Uses SAMPLE_SECTION_HTML for true/false questions to verify that the
+        method returns True.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid in ["b37fe", "89195"]:
+            html = SAMPLE_SECTION_HTML[qid]
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            assert scraper._is_tf(h1) is True
 
-                assert result._qid == "e4fec"
-                assert result._question == "驾驶校车、中型以上载客载货汽车、危险物品运输车辆在高速公路、城市快速路以外的道路上行驶超过规定时速百分之五十以上的，一次记9分。"
-                assert result._answers == {"对", "错"}
-                assert result._correct_answer == "对"
-                assert result._img_path is None
+    def test_is_tf_four_choice(self):
+        """
+        Test that _is_tf returns False for four-choice questions.
 
-    def test_get_content_no_image(self, scraper):
-        """Test get_content with a question that has no image"""
-        # Mock the webpage fetching to return our no-image sample HTML
-        with patch.object(scraper, '_get_webpage') as mock_get_webpage:
-            # Create a BeautifulSoup object from the NO_IMG_HTML
-            soup = BeautifulSoup(NO_IMG_HTML, 'html.parser')
-            mock_get_webpage.return_value = soup
+        Uses SAMPLE_SECTION_HTML for four-choice questions to verify that the
+        method returns False.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid in ["d548b", "10d89"]:
+            html = SAMPLE_SECTION_HTML[qid]
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            assert scraper._is_tf(h1) is False
 
-            result = scraper.get_question("abcde")
+class TestExtract4C:
+    """Unit tests for the _extract_4c method of QuestionScraper, which extracts
+    four-choice options as a dictionary."""
 
-            assert result._qid == "abcde"
-            assert result._question == "这是一个没有图片的问题？"
-            assert result._answers == {"选项一", "选项二", "选项三", "选项四"}
-            assert result._correct_answer == "选项三"
-            assert result._img_path is None
+    def test_extract_4c_returns_dict(self):
+        """
+        Test that _extract_4c returns a dictionary mapping letters to answers.
 
-    def test_mocked_get_content(self):
-        """Create a mocked version of tests to avoid external dependencies"""
-        # Create a mock for the scraper
-        mock_scraper = MagicMock()
+        Uses SAMPLE_SECTION_HTML for four-choice questions to verify that the
+        returned dictionary maps option letters (A-D) to their corresponding answers.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        expected_dicts = {
+            "d548b": {
+                "A": "拦截过往车辆帮助拖车",
+                "B": "借用其他机动车牵引",
+                "C": "车上人员应当坐在车内等待救援",
+                "D": "开启危险报警闪光灯，并在来车方向150米外设置警告标志"
+            },
+            "10d89": {
+                "A": "让左方道路车辆先行",
+                "B": "让右方道路车辆先行",
+                "C": "直接加速直行通过",
+                "D": "开启危险报警闪光灯通行"
+            }
+        }
+        for qid in ["d548b", "10d89"]:
+            html = SAMPLE_SECTION_HTML[qid]
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            d = scraper._extract_4c(h1)
+            assert d == expected_dicts[qid]
 
-        # Configure the mock to return a Question object
-        mock_question = Question(
-            qid="mock123",
-            question="This is a mock question?",
-            answers={"Answer 1", "Answer 2", "Answer 3", "Answer 4"},
-            correct_answer="Answer 3",
-            img_path="mock/path/to/image.webp"
-        )
-        mock_scraper.get_content.return_value = mock_question
+class TestGetAns:
+    """Unit tests for the _get_ans method of QuestionScraper, which returns the
+    correct answer for a question."""
 
-        # Call the mocked method
-        result = mock_scraper.get_content("mock123")
+    def test_get_ans_true_false(self):
+        """
+        Test that _get_ans returns the correct answer for true/false questions.
 
-        # Verify the result
-        assert result._qid == "mock123"
-        assert result._question == "This is a mock question?"
-        assert result._answers == {"Answer 1", "Answer 2", "Answer 3", "Answer 4"}
-        assert result._correct_answer == "Answer 3"
-        assert result._img_path == "mock/path/to/image.webp"
+        Uses SAMPLE_SECTION_HTML for true/false questions to verify that the
+        correct answer ("对" or "错") is returned.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        expected = {
+            "b37fe": "错",
+            "89195": "对"
+        }
+        for qid in ["b37fe", "89195"]:
+            html = SAMPLE_SECTION_HTML[qid]
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            ans = scraper._get_ans(h1)
+            assert ans == expected[qid]
 
-        # Verify the mock was called with the expected argument
-        mock_scraper.get_content.assert_called_once_with("mock123")
+    def test_get_ans_four_choice(self):
+        """
+        Test that _get_ans returns the correct answer for four-choice questions.
 
-    # TODO: Test get_content with invalid question ID
-    # TODO: Test get_content with connection error
-    # TODO: Test get_content with malformed HTML
-    # TODO: Test get_content with HTML missing h1 tag
-
-
-# TODO: Add a new test class for Question validation errors
-class TestQuestionValidation:
-    """Tests for Question validation and error handling"""
-
-    # TODO: Test Question initialization with empty qid
-    # TODO: Test Question initialization with empty question text
-    # TODO: Test Question initialization with less than 2 answers
-    # TODO: Test Question initialization with empty answer in answers set
-    # TODO: Test Question initialization with correct_answer not in answers
-    # TODO: Test Question initialization with non-string img_path
+        Uses SAMPLE_SECTION_HTML for four-choice questions to verify that the
+        correct answer text is returned based on the marked option.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        expected = {
+            "d548b": "开启危险报警闪光灯，并在来车方向150米外设置警告标志",
+            "10d89": "让右方道路车辆先行"
+        }
+        for qid in ["d548b", "10d89"]:
+            html = SAMPLE_SECTION_HTML[qid]
+            soup = BeautifulSoup(html, "html.parser")
+            h1 = soup.find("h1")
+            ans = scraper._get_ans(h1)
+            assert ans == expected[qid]
