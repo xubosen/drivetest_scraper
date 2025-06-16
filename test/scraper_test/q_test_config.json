@@ -1,0 +1,9 @@
+{
+  "base_url": "https://tiba.jsyks.com/Post/{QuestionId}.htm",
+  "url_placeholder": "{QuestionId}",
+  "id_name": "question",
+  "html_examples": {
+    "four_choice": "<div id=\"question\" class=\"fcc\"><h1><strong><a href=\"/Post/33b74.htm\">这个标志是何含义？</a></strong><span><img onclick=\"vExamTp(this);\" src=\"https://tp.mnks.cn/ExamPic/kmy_136.jpg\"></span>A、注意行人<br>B、人行横道<br><b>C、注意儿童</b><br>D、学校区域<br>答案：<u>C</u></h1><p><i title=\"人气指数\" id=\"ReadCount\">1238753</i></p><b class=\"bg\"></b></div>",
+    "true_false": "<div id=\"question\" class=\"fcc\"><h1><strong><a href=\"/Post/e4fec.htm\">驾驶校车、中型以上载客载货汽车、危险物品运输车辆在高速公路、城市快速路以外的道路上行驶超过规定时速百分之五十以上的，一次记9分。</a></strong><br>答案：<u>对</u></h1><p><i title=\"人气指数\" id=\"ReadCount\">4281</i></p><b class=\"bg\"></b></div>"
+  }
+}
