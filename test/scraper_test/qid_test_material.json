@@ -1,0 +1,36 @@
+{
+  "SAMPLE_MENU_SECTION" : "<div class=\"tikulist fcc\"><div style=\"display:block;width:96%;\"><h1><a href=\"/kmytk\">2025年科目一基础理论知识考试题库</a></h1><span style=\"display:block;margin:0 0 17px 0;color:#666;\">科目一考试题库为考驾照学员提供2025年科目一考试试题，通过基础理论知识学习与考试试题分析， 全面快速掌握科目一试题基础知识，顺利获取驾驶员证书。</span><ul><li><a href=\"https://tiba.jsyks.com/kmytk_1501\" style=\"\">第1章：道路交通安全法律、法规和规章</a></li><li><a href=\"https://tiba.jsyks.com/kmytk_1502\" style=\"\">第2章：交通信号</a></li><li><a href=\"https://tiba.jsyks.com/kmytk_1503\" style=\"\">第3章：安全行车、文明驾驶基础知识</a></li><li><a href=\"https://tiba.jsyks.com/kmytk_1504\" style=\"\">第4章：机动车驾驶操作相关基础知识</a></li><li><a href=\"https://tiba.jsyks.com/kmytk_1505\" style=\"\">第5章：货车专用试题</a></li><li><a href=\"https://tiba.jsyks.com/kmytk_1506\" style=\"\">第6章：客车专用试题</a></li><li><a href=\"https://tiba.jsyks.com/kmytk_1507\" style=\"\">第7章：摩托车专用试题</a></li></ul></div></div>",
+  "SAMPLE_PAGE_BARS" : {
+    "has last page button" : "<div class=\"PageL\" style=\"text-align:center;\"><b><a href=\"/kmytk_1502\">1</a></b><a href=\"/kmytk_1502_2\">2</a><a href=\"/kmytk_1502_3\">3</a><a href=\"/kmytk_1502_4\">4</a><a href=\"/kmytk_1502_5\">5</a><a href=\"/kmytk_1502_6\">6</a><a href=\"/kmytk_1502_2\">下页</a><a href=\"/kmytk_1502_22\">尾页</a></div>",
+    "no last page button" : "<div class=\"PageL\" style=\"text-align:center;\"><b><a href=\"/kmytk_1504\">1</a></b><a href=\"/kmytk_1504_2\">2</a><a href=\"/kmytk_1504_3\">3</a><a href=\"/kmytk_1504_2\">下页</a></div>"
+  },
+  "CHAPTERS" : {
+    "1": "道路交通安全法律、法规和规章",
+    "2": "交通信号",
+    "3": "安全行车、文明驾驶基础知识",
+    "4": "机动车驾驶操作相关基础知识",
+    "5": "货车专用试题",
+    "6": "客车专用试题",
+    "7": "摩托车专用试题" },
+  "CHAPTER_TO_CHAPTER_URL" : {
+    "1": "https://tiba.jsyks.com/kmytk_1501",
+    "2": "https://tiba.jsyks.com/kmytk_1502",
+    "3": "https://tiba.jsyks.com/kmytk_1503",
+    "4": "https://tiba.jsyks.com/kmytk_1504",
+    "5": "https://tiba.jsyks.com/kmytk_1505",
+    "6": "https://tiba.jsyks.com/kmytk_1506",
+    "7": "https://tiba.jsyks.com/kmytk_1507"
+  },
+  "CHAPTER_TO_PAGE_COUNT" : {
+    "1": 15,
+    "2": 22,
+    "3": 6,
+    "4": 3,
+    "5": 5,
+    "6": 2,
+    "7": 7
+  },
+  "SAMPLE_QLIST_URL" : "https://tiba.jsyks.com/kmytk_1504_3",
+  "SAMPLE_QUESTION_LIST": "<div class=\"ListCnt\"><ul><li><i>101.</i><a href=\"/Post/d6fc4.htm\" target=\"_blank\">在高速公路上车辆发生故障需要停车时，以下做法正确的是什么？<br>A、紧急制动后立即停车<br>B、开启左转向灯行驶至最左侧车道内缓慢停车<br>C、开启右转向灯缓慢行驶至右侧应急车道停车<br>D、开启危险报警闪光灯后立即停车<br>答案：C</a><span><em></em><br>2043 人查看<br>0 条分析<br><u onclick=\"window.open('/Post/d6fc4.htm');\"><br>我来分析</u></span></li><li><i>102.</i><a href=\"/Post/d548b.htm\" target=\"_blank\">驾驶机动车在高速公路上发生故障时，以下做法正确的是什么？<br>A、拦截过往车辆帮助拖车<br>B、借用其他机动车牵引<br>C、车上人员应当坐在车内等待救援<br>D、开启危险报警闪光灯，并在来车方向150米外设置警告标志<br>答案：D</a><span><em></em><br>1720 人查看<br>0 条分析<br><u onclick=\"window.open('/Post/d548b.htm');\"><br>我来分析</u></span></li></ul></div>",
+  "SAMPLE_QLIST_QID" : ["d6fc4", "d548b"]
+}

@@ -25,6 +25,7 @@ class QidScraper:
     _chapters: Dict[int, str]
     _chapt_to_chapturl: Dict[int, str]
     _chapt_to_urls: Dict[int, List[str]]
+    _connected: bool
 
     def __init__(self, logger: Logger, config_path: str):
         """
@@ -50,6 +51,18 @@ class QidScraper:
         self._qlst_cid = config.get("q_lst_cls_name")
         self._base_url = config.get("base_url")
 
+        # Initialize remaining private attributes with empty dictionaries
+        self._chapters = {}
+        self._chapt_to_chapturl = {}
+        self._chapt_to_urls = {}
+
+        self._connected = False
+
+    def connect(self):
+        """
+        Connect to the jsyks site and retrieve chapter information.
+        :return:
+        """
         # Scrape chapters from the base url
         self._logger.info(f"Retrieving chapters from {self._base_url}")
         section = self._extract_chapter_section(self._base_url)
@@ -59,6 +72,8 @@ class QidScraper:
 
         self._logger.info("Setting up chapter to URLs mapping...")
         self._set_up_urls()
+        self._logger.info("Chapter information retrieved.")
+        self._connected = True
 
     def _extract_chapter_section(self, url: str) -> BeautifulSoup:
         """
@@ -69,12 +84,12 @@ class QidScraper:
         :raises JSYKSConnectionError: If connection to the URL fails
         """
         html_page = requests.get(url)
-        if 200 <= html_page.status_code < 300:
+        try:
             my_filter = SoupStrainer("div", class_=self._clst_cid)
             return BeautifulSoup(html_page.content,
                                  'html.parser',
                                  parse_only=my_filter)
-        else:
+        except ConnectionError:
             raise JSYKSConnectionError(f"Failed to connect to {url}. "
                                        f"Status code: {html_page.status_code}")
 
@@ -91,7 +106,9 @@ class QidScraper:
         for li in list_item:
             a = li.find('a')
             # Look inside the tag to find the chapter name
-            index, descr = tuple(a.get_text().split(":"))
+            self._logger.debug(f"Looking for chapter name in {a.get_text()}")
+            # Make sure to use chinese “：”
+            index, descr = a.get_text().split("：")
 
             # Convert index to integer (第1章 -> 1)
             chapter_num = int(re.search(r'第(\d+)章', index).group(1))
@@ -108,7 +125,7 @@ class QidScraper:
 
         :raises JSYKSConnectionError: If connection to any chapter URL fails
         """
-        for chapter in self._chapt_to_urls.keys():
+        for chapter in self._chapters.keys():
             self._logger.info(f"Setting up URLs for chapter {chapter}...")
             self._chapt_to_urls[chapter] = []
             page = requests.get(self._chapt_to_chapturl[chapter])
@@ -118,7 +135,6 @@ class QidScraper:
                                          'html.parser',
                                          parse_only=my_filter)
                 self._extract_urls(page_bar, chapter)
-
             else:
                 raise JSYKSConnectionError(f"Failed to connect to "
                                            f"{self._chapt_to_chapturl[chapter]}"
@@ -134,9 +150,14 @@ class QidScraper:
         """
         # Look for the <a> tag with the string "尾页"
         last_page_button = page_bar.find('a', string='尾页')
-
-        # Check the href attribute of the last page url
-        last_page_url = last_page_button.get('href')
+        # If there is a last page button, check the href attribute of its url
+        if last_page_button:
+            last_page_url = last_page_button.get('href')
+        # If not, find the url of the last page displayed
+        else:
+            a_s = page_bar.find_all('a')
+            # The last a tag is for "next page"
+            last_page_url = a_s[-2].get('href')
 
         # Parse url
         _, chapter_code, page_count = tuple(last_page_url.split('_'))
@@ -153,6 +174,9 @@ class QidScraper:
 
         :return: Dictionary mapping chapter numbers to chapter names
         """
+        if not self._connected:
+            raise JSYKSContentRetrievalError("Not connected to jsyks site. "
+                                             "Call connect() first.")
         return self._chapters
 
     def get_chapter_to_qids(self) -> Dict[int, Set[str]]:
@@ -161,6 +185,9 @@ class QidScraper:
 
         :return: Dictionary mapping chapter numbers to sets of question IDs
         """
+        if not self._connected:
+            raise JSYKSContentRetrievalError("Not connected to jsyks site. "
+                                             "Call connect() first.")
         chapt_to_qids = {}
         for chapter in self._chapters.keys():
             chapt_to_qids[chapter] = set()
