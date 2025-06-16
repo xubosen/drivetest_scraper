@@ -28,7 +28,7 @@ SAMPLE_IMG_URLS = Q_TEST_MATERIAL["SAMPLE_IMG_URLS"]
 SAMPLE_SECTION_HTML = Q_TEST_MATERIAL["SAMPLE_SECTION_HTML"]
 
 # Logger setup
-LOG_PATH = "test_logs/log"
+LOG_PATH = "test_logs"
 if not os.path.exists(LOG_PATH):
     os.makedirs(LOG_PATH)
 
@@ -66,34 +66,100 @@ class TestGetSection:
 
     def test_get_section_returns_h1(self):
         """
-        Test that _get_section returns a BeautifulSoup object containing the question section.
+        Test that _get_section returns a BeautifulSoup object containing the
+        question section.
 
-        Uses SAMPLE_SECTION_HTML from the test material to simulate HTML content
-        and checks that the returned object contains the expected <h1> tag.
+        Make real requests to the URLs in SAMPLE_URLS and check that the
+        method returns a section wrapped in h1 tags
         """
-        pass
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        # Only test a small sample to avoid excessive requests
+        sample_qids = ["eb681", "51b33", "d6fc4", "b85e0"]
+        for qid in sample_qids:
+            url = scraper._format_url(qid)
+            sec = scraper._get_section(url)
+            assert sec is not None
+            assert sec.name == "h1", \
+                f"Expected <h1> tag, got {sec.name} for qid {qid}"
+
+    def test_get_section_samples(self):
+        """
+        Test that _get_section returns the Sample Sections when the
+        corresponding url is used.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid, html in SAMPLE_SECTION_HTML.items():
+            url = scraper._format_url(qid)
+            sec = scraper._get_section(url)
+            assert sec is not None
+            assert str(sec) == html
 
 class TestGetImgPath:
     """Unit tests for the _get_img_path method of QuestionScraper, which
     determines the image path for a question if an image exists."""
 
-    def test_get_img_path_with_image(self):
+    def test_get_img_path_with_image_tf(self):
         """
-        Test that _get_img_path returns the correct image path when an image exists.
+        Test that _get_img_path returns the correct image path when an image
+        exists in a true/false question.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        # Use a TF question with image from SAMPLE_IMG_URLS and SAMPLE_SECTION_HTML
+        for qid in SAMPLE_QIDS["SAMPLE_TF_IMG"]:
+            if qid in SAMPLE_IMG_URLS and qid in SAMPLE_SECTION_HTML:
+                html = SAMPLE_SECTION_HTML[qid]
+                soup = BeautifulSoup(html, "html.parser")
+                h1 = soup.find("h1")
+                img_path = scraper._get_img_path(h1, qid)
+                assert img_path is not None
+                assert os.path.exists(img_path)
+                # Clean up
+                os.remove(img_path)
 
-        Uses SAMPLE_SECTION_HTML and SAMPLE_IMG_URLS to simulate a question section
-        with an image and verifies that the image path is generated as expected.
+    def test_get_img_path_with_image_4c(self):
         """
-        pass
+        Test that _get_img_path returns the correct image path when an image
+        exists in a four-choice question.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid in SAMPLE_QIDS["SAMPLE_4C_IMG"]:
+            if qid in SAMPLE_IMG_URLS and qid in SAMPLE_SECTION_HTML:
+                html = SAMPLE_SECTION_HTML[qid]
+                soup = BeautifulSoup(html, "html.parser")
+                h1 = soup.find("h1")
+                img_path = scraper._get_img_path(h1, qid)
+                assert img_path is not None
+                assert os.path.exists(img_path)
+                # Clean up
+                os.remove(img_path)
 
-    def test_get_img_path_without_image(self):
+    def test_get_img_path_without_image_tf(self):
         """
-        Test that _get_img_path returns None when no image exists.
+        Test that _get_img_path returns None when no image exists in a
+        true/false question.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid in SAMPLE_QIDS["SAMPLE_TF_NO_IMG"]:
+            if qid in SAMPLE_SECTION_HTML:
+                html = SAMPLE_SECTION_HTML[qid]
+                soup = BeautifulSoup(html, "html.parser")
+                h1 = soup.find("h1")
+                img_path = scraper._get_img_path(h1, qid)
+                assert img_path is None
 
-        Uses SAMPLE_SECTION_HTML for a question without an image to verify that
-        None is returned.
+    def test_get_img_path_without_image_4c(self):
         """
-        pass
+        Test that _get_img_path returns None when no image exists in a
+        four-choice question.
+        """
+        scraper = QuestionScraper(IMG_SAVE_PATH, CONFIG_PATH, LOGGER)
+        for qid in SAMPLE_QIDS["SAMPLE_4C_NO_IMG"]:
+            if qid in SAMPLE_SECTION_HTML:
+                html = SAMPLE_SECTION_HTML[qid]
+                soup = BeautifulSoup(html, "html.parser")
+                h1 = soup.find("h1")
+                img_path = scraper._get_img_path(h1, qid)
+                assert img_path is None
 
 class TestExtractImgUrl:
     """Unit tests for the _extract_img_url method of QuestionScraper, which
@@ -149,7 +215,8 @@ class TestGetQTxt:
             "d548b": "驾驶机动车在高速公路上发生故障时，以下做法正确的是什么？",
             "10d89": "在路口直行时，遇这种情形如何通行？"
         }
-        for qid, html in SAMPLE_SECTION_HTML.items():
+        for qid in SAMPLE_SECTION_HTML.keys():
+            html = SAMPLE_SECTION_HTML[qid]
             soup = BeautifulSoup(html, "html.parser")
             h1 = soup.find("h1")
             q_txt = scraper._get_q_txt(h1)
@@ -239,7 +306,7 @@ class TestExtract4C:
     """Unit tests for the _extract_4c method of QuestionScraper, which extracts
     four-choice options as a dictionary."""
 
-    def test_extract_4c_returns_dict(self):
+    def test_extract_4c(self):
         """
         Test that _extract_4c returns a dictionary mapping letters to answers.
 
