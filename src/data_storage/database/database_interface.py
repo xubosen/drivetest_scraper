@@ -18,6 +18,7 @@ class Database(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def load(self) -> QuestionBank:
         """
         Load a question bank from the database.
