@@ -7,10 +7,10 @@ from data_storage.database.local_json_db import LocalJsonDB
 from data_storage.in_memory.question_bank import QuestionBank
 from data_storage.in_memory.question import Question
 
-SOURCE_IMG_TEST = "db_test/source_img/"
+SOURCE_IMG_TEST = "db_test/source_img"
 
 TEST_DB_PATH = "db_test/mock_db/data.json"
-TEST_IMG_DIR = "db_test/mock_db/images/"
+TEST_IMG_DIR = "db_test/mock_db/images"
 
 
 def teardown():
