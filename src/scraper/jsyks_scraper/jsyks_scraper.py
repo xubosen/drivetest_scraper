@@ -30,7 +30,6 @@ class JSYKSScraper(Scraper):
         self.qb = qb
         self.logger = logger
         self.qid_scraper = QidScraper(logger, QID_SCRAPER_CONFIG_PATH)
-        self.qid_scraper.connect()
         self.question_scraper = QuestionScraper(qb.get_img_dir(),
                                                 Q_SCRAPER_CONFIG_PATH,
                                                 logger)
@@ -40,25 +39,17 @@ class JSYKSScraper(Scraper):
         Scrapes question IDs and then scrapes questions using those IDs.
         Fills the question bank with the scraped questions.
         """
-        self.logger.info("Starting to scrape question IDs")
         # Get chapters and their question IDs
+        self.logger.info("Starting to scrape question IDs")
+        self.qid_scraper.connect()
         chapters = self.qid_scraper.get_chapters()
+        chapter_to_q_ids = self.qid_scraper.get_chapter_to_qids()
 
-        # Add chapters to question bank
-        for chapter_num, (chapter_desc, qids) in chapters.items():
-            self.logger.info(f"Adding chapter {chapter_num}: {chapter_desc} "
-                             f"with {len(qids)} questions")
-            self.qb.add_chapter(chapter_num, chapter_desc)
-
-            # Scrape each question and add to question bank
-            for qid in qids:
-                self.logger.debug(f"Scraping question {qid}")
-                try:
-                    question = self.question_scraper.get_question(qid)
-                    if question:
-                        self.qb.add_question(question, chapter_num)
-                except Exception as e:
-                    self.logger.error(f"Error scraping question {qid}: {e}")
-
-            self.logger.info(f"Completed chapter {chapter_num} with "
-                             f"{self.qb.question_count(chapter_num)} questions")
+        # For each chapter, scrape the questions using their IDs and add them
+        # to the question bank
+        for chapter in chapters.keys():
+            self.logger.info(f"Scraping questions for chapter {chapter}")
+            for qid in chapter_to_q_ids[chapter]:
+                self.logger.info(f"Scraping question with ID {qid}")
+                question = self.question_scraper.get_question(qid)
+                self.qb.add_question(question, chapter)
