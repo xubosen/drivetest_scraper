@@ -105,7 +105,7 @@ class LocalJsonDB(Database):
         return result
 
     def _make_img_path(self, question):
-        return self._img_dir + question.get_qid()
+        return self._img_dir + "/" + question.get_qid() + ".webp"
 
     def _deserialize_question_bank(self, data: Dict[str, Any]) -> QuestionBank:
         """
