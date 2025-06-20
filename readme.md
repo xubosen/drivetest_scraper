@@ -50,9 +50,3 @@ The application creates detailed logs in the `logs/` directory. Each log file is
 Questions are stored in:
 - **In-memory**: During application runtime using `QuestionBank` class
 - **Persistent storage**: Using a JSON file database implementation
-
-## Dependencies
-
-- Python 3.6+
-- Required Python packages (specified in requirements.txt)
-
