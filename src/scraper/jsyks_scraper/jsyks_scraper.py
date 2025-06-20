@@ -45,9 +45,12 @@ class JSYKSScraper(Scraper):
         chapters = self.qid_scraper.get_chapters()
         chapter_to_q_ids = self.qid_scraper.get_chapter_to_qids()
 
-        # For each chapter, scrape the questions using their IDs and add them
-        # to the question bank
         for chapter in chapters.keys():
+            # Add chapter to the question bank
+            self.logger.info(f"Adding chapter {chapter} to the question bank")
+            self.qb.add_chapter(chapter, chapters[chapter])
+
+            # Scrape questions by id and add them to the question bank
             self.logger.info(f"Scraping questions for chapter {chapter}")
             for qid in chapter_to_q_ids[chapter]:
                 self.logger.info(f"Scraping question with ID {qid}")
