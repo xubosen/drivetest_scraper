@@ -138,7 +138,11 @@ class LocalJsonDB(Database):
                     break
 
             if chapter_num is not None:
-                img_path = q_data["img_path"] if q_data["img_path"] else None
+                img_path = q_data["img_path"]
+                # Check if the image path is valid
+                if (not os.path.exists(img_path)) or (not img_path):
+                    img_path = None
+
                 # Create Question object
                 question = Question(
                     qid=q_data["qid"],
