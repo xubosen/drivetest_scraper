@@ -104,7 +104,9 @@ class LocalJsonDB(Database):
                   }
         return result
 
-    def _make_img_path(self, question):
+    def _make_img_path(self, question) -> str:
+        if question.get_img_path() is None:
+            return ""
         return self._img_dir + "/" + question.get_qid() + ".webp"
 
     def _deserialize_question_bank(self, data: Dict[str, Any]) -> QuestionBank:
@@ -136,13 +138,14 @@ class LocalJsonDB(Database):
                     break
 
             if chapter_num is not None:
+                img_path = q_data["img_path"] if q_data["img_path"] else None
                 # Create Question object
                 question = Question(
                     qid=q_data["qid"],
                     question=q_data["question"],
                     answers=set(q_data["answers"]),
                     correct_answer=q_data["correct_answer"],
-                    img_path=q_data["img_path"]
+                    img_path=img_path
                 )
 
                 # Add to QuestionBank

@@ -13,8 +13,8 @@ from scraper.scraper_interface import Scraper
 from scraper.jsyks_scraper.jsyks_scraper import JSYKSScraper
 
 LOG_PATH = "logs"
-DB_PATH = "data_storage/database/local_json_db/data.json"
-DB_IMG_DIR = "data_storage/database/local_json_db/images"
+DB_PATH = "data_storage/database/json_db/data.json"
+DB_IMG_DIR = "data_storage/database/json_db/images"
 IN_MEM_IMG_DIR = "data_storage/in_memory/img"
 
 def make_logger() -> Logger:
